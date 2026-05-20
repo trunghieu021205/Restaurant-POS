@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import FormInput from '@/components/FormInput';
+import FormInput from '@/components/forms/FormInput';
 import useAuthStore from '@/stores/auth';
 
 const loginSchema = z.object({
