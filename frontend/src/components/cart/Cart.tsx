@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { ShoppingCart, X } from 'lucide-react';
 import useCartStore from '@/stores/cart';
 
 export default function Cart() {
@@ -19,7 +20,7 @@ export default function Cart() {
         className="lg:hidden fixed bottom-6 right-6 bg-primary-500 text-white p-4 rounded-full shadow-lg z-(--z-modal)]hover:bg-primary-600 hover:scale-110 transition-all duration-200"
         onClick={() => setMobileOpen(true)}
       >
-        🛒
+        <ShoppingCart className="h-6 w-6" />
         {items.length > 0 && (
           <span className="absolute -top-1 -right-1 bg-error-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
             {items.length}
@@ -48,7 +49,7 @@ export default function Cart() {
           className="hidden lg:flex absolute top-4 left-4 p-2 rounded-btn text-neutral-600 hover:text-primary-600 hover:bg-neutral-100 hover:scale-110 transition-all duration-200 z-10"
           title={isExpanded ? 'Thu gọn giỏ hàng' : 'Mở rộng giỏ hàng'}
         >
-          {isExpanded ? '✕' : '🛒'}
+          {isExpanded ? <X className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
         </button>
 
         {/* Badge số lượng khi thu gọn */}
@@ -66,7 +67,7 @@ export default function Cart() {
               onClick={() => { setMobileOpen(false); }}
               className="lg:hidden text-neutral-500 hover:text-neutral-700 hover:scale-110 transition-all duration-200"
             >
-              ✕
+              <X className="h-5 w-5" />
             </button>
           </div>
 

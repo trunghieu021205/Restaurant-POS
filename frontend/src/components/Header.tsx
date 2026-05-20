@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useAuthStore from '@/stores/auth';
 import useCartStore from '@/stores/cart';
+import { ShoppingCart, Menu, X, ChevronDown } from 'lucide-react';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -74,20 +75,7 @@ export default function Header() {
           </nav>
           <div className="flex items-center space-x-4">
             <Link href="/cart" className="relative p-2 rounded-btn hover:bg-neutral-100 transition-colors">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-neutral-700 hover:text-primary-600 transition-colors"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"
-                />
-              </svg>
+              <ShoppingCart className="h-6 w-6 text-neutral-700 hover:text-primary-600 transition-colors" />
               {cartBadge}
             </Link>
             {token ? (
@@ -97,9 +85,7 @@ export default function Header() {
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <span className="text-neutral-700 font-medium text-sm">{user?.name}</span>
-                  <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronDown className="h-4 w-4 text-neutral-500" />
                 </button>
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-card shadow-modal opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-1 group-hover:translate-y-0 z-50">
                   <div className="py-1">
@@ -166,9 +152,7 @@ export default function Header() {
               className="p-2 rounded-btn text-neutral-700 hover:bg-neutral-100 transition-colors"
               aria-label="Đóng menu"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="h-6 w-6" />
             </button>
           </div>
           <nav className="flex flex-col space-y-2 mb-8">

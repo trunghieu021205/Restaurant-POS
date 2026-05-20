@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MapPin, Phone, Mail } from 'lucide-react';
 
 const socialLinks = [
   {
@@ -71,15 +72,15 @@ export default function Footer() {
             <h4 className="text-white font-semibold mb-4">Liên hệ</h4>
             <ul className="space-y-2 text-sm text-neutral-400">
               <li className="flex items-center space-x-2">
-                <span>📍</span>
+                <MapPin className="h-4 w-4" />
                 <span>123 Đường ABC, Quận XYZ</span>
               </li>
               <li className="flex items-center space-x-2">
-                <span>📞</span>
+                <Phone className="h-4 w-4" />
                 <span>0123 456 789</span>
               </li>
               <li className="flex items-center space-x-2">
-                <span>✉️</span>
+                <Mail className="h-4 w-4" />
                 <span>contact@restaurant.vn</span>
               </li>
             </ul>
