@@ -7,12 +7,12 @@ import type { CartItem } from '@/types';
 import useCartStore from '@/stores/cart';
 
 const dummyMenu: CartItem[] = [
-  { id: '1', name: 'Phở bò', price: 50000, quantity: 1, image: '/pho.jpg', description: 'Phở bò tái chín đậm đà' },
-  { id: '2', name: 'Bún chả', price: 45000, quantity: 1, image: '/buncha.jpg', description: 'Bún chả Hà Nội chính gốc' },
-  { id: '3', name: 'Cơm tấm', price: 40000, quantity: 1, image: '/comtam.jpg', description: 'Cơm tấm sườn bì chả' },
-  { id: '4', name: 'Gỏi cuốn', price: 35000, quantity: 1, image: '/goicuon.jpg', description: 'Gỏi cuốn tôm thịt tươi' },
-  { id: '5', name: 'Chả giò', price: 30000, quantity: 1, image: '/chagio.jpg', description: 'Chả giò rế giòn tan' },
-  { id: '6', name: 'Bánh mì', price: 20000, quantity: 1, image: '/banhmi.jpg', description: 'Bánh mì thịt nướng đặc biệt' },
+  { id: '1', name: 'Phở bò', price: 50000, quantity: 1, image: '/menu/food/pho.jpg', description: 'Phở bò tái chín đậm đà' },
+  { id: '2', name: 'Bún chả', price: 45000, quantity: 1, image: '/menu/food/buncha.jpg', description: 'Bún chả Hà Nội chính gốc' },
+  { id: '3', name: 'Cơm tấm', price: 40000, quantity: 1, image: '/menu/food/comtam.jpg', description: 'Cơm tấm sườn bì chả' },
+  { id: '4', name: 'Gỏi cuốn', price: 35000, quantity: 1, image: '/menu/food/goicuon.jpg', description: 'Gỏi cuốn tôm thịt tươi' },
+  { id: '5', name: 'Chả giò', price: 30000, quantity: 1, image: '/menu/food/chagio.jpg', description: 'Chả giò rế giòn tan' },
+  { id: '6', name: 'Bánh mì', price: 20000, quantity: 1, image: '/menu/food/banhmi.jpg', description: 'Bánh mì thịt nướng đặc biệt' },
 ];
 
 type Params = Promise<{ id: string }>;
