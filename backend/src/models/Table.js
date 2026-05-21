@@ -4,11 +4,13 @@ const tableSchema = new mongoose.Schema({
     tableNumber: {
         type: Number,
         required: true,
-        unique: true
+        unique: true,
+        min: 1
     },
     capacity: {
         type: Number,
-        required: true
+        required: true,
+        min: 1
     },
     status: {
         type: String,

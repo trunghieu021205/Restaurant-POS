@@ -5,17 +5,23 @@ const User = require('../models/User')
 exports.register = async (req, res) => {
     try {
         const { name, email, password } = req.body;
+        if (!name || !email || !password) {
+            return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
+        }
         const hash = await bcrypt.hash(password, 10);
         const user = await User.create({ name, email, password: hash });
         res.status(201).json({ id: user._id, email: user.email });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(400).json({ message: 'Đăng ký thất bại' });
     }
 };
 
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Thiếu email hoặc mật khẩu' });
+        }
         const user = await User.findOne({ email });
         if (!user || !(await bcrypt.compare(password, user.password)))
             return res.status(401).json({ message: 'Sai email hoặc mật khẩu' });
@@ -27,6 +33,6 @@ exports.login = async (req, res) => {
         );
         res.json({ token, role: user.role, name: user.name });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Đăng nhập thất bại' });
     }
 }
