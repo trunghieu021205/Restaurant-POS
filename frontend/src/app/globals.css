@@ -1,1 +1,104 @@
 @import "tailwindcss";
+
+/* =============================================
+   DESIGN SYSTEM - @theme
+   ============================================= */
+@theme {
+  /* ----- Color Tokens ----- */
+  /* Primary Palette (Orange) */
+  --color-primary-50: oklch(96.65% 0.0255 58.83);
+  --color-primary-100: oklch(92.73% 0.0508 56.61);
+  --color-primary-200: oklch(86.36% 0.0914 52.39);
+  --color-primary-300: oklch(79.14% 0.1369 46.84);
+  --color-primary-400: oklch(70.12% 0.1826 40.17);
+  --color-primary-500: oklch(62.81% 0.2192 34.28);
+  --color-primary-600: oklch(56.02% 0.2237 30.25);
+  --color-primary-700: oklch(50.11% 0.2149 25.76);
+  --color-primary-800: oklch(43.93% 0.2012 20.91);
+  --color-primary-900: oklch(39.47% 0.1856 15.63);
+
+  /* Secondary Palette (Teal) */
+  --color-secondary-500: oklch(60% 0.08 188);
+  --color-secondary-600: oklch(53% 0.08 188);
+
+  /* Neutral Palette (Warm Gray) */
+  --color-neutral-50: oklch(98.5% 0.002 70);
+  --color-neutral-100: oklch(96.5% 0.003 70);
+  --color-neutral-200: oklch(91% 0.005 70);
+  --color-neutral-300: oklch(83.5% 0.007 70);
+  --color-neutral-400: oklch(72% 0.01 70);
+  --color-neutral-500: oklch(62% 0.01 70);
+  --color-neutral-600: oklch(53% 0.01 70);
+  --color-neutral-700: oklch(42% 0.01 70);
+  --color-neutral-800: oklch(28% 0.01 70);
+  --color-neutral-900: oklch(18% 0.01 70);
+
+  /* Semantic Colors */
+  --color-success-500: oklch(62% 0.19 145);
+  --color-success-600: oklch(55% 0.19 145);
+  --color-warning-500: oklch(72% 0.17 76);
+  --color-warning-600: oklch(65% 0.17 76);
+  --color-error-500: oklch(55% 0.22 25);
+  --color-error-600: oklch(48% 0.22 25);
+
+  /* ----- Typography ----- */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+
+  /* ----- Spacing (extends default scale) ----- */
+  --spacing-section: 5rem;
+  --spacing-section-mobile: 3rem;
+  --spacing-card-padding: 1.5rem;
+  --spacing-button-py: 0.625rem;
+  --spacing-button-px: 1.25rem;
+
+  /* ----- Border Radius ----- */
+  --radius-card: 0.75rem;
+  --radius-btn: 0.5rem;
+
+  /* ----- Shadows ----- */
+  --shadow-card:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-modal:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+  /* ----- Z-Index ----- */
+  --z-header: 100;
+  --z-overlay: 200;
+  --z-drawer: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+}
+
+/* =============================================
+   GLOBAL STYLES
+   ============================================= */
+html {
+  font-family: var(--font-sans);
+}
+
+body {
+  @apply bg-neutral-50 text-neutral-800 antialiased;
+}
+
+button {
+  cursor: pointer;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .animate-slideDown {
+    animation: slideDown 0.3s ease-out;
+  }
+}
