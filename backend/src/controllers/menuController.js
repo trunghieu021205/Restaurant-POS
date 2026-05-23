@@ -2,7 +2,7 @@ const MenuItem = require('../models/MenuItem');
 
 exports.getMenu = async (req, res) => {
     try {
-        const menuItems = await MenuItem.find().sort({category: 1, name: 1})
+        const menuItems = await MenuItem.find().sort({categoryId: 1, name: 1})
         
         const formattedMenu = menuItems.reduce((item) => ({
             id: item._id,

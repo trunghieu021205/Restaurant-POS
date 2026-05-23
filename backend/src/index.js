@@ -25,6 +25,9 @@ app.use('/api/auth', authRoutes);
 const menuRoutes = require('./routes/menuRoutes');
 app.use('/api/menu', menuRoutes);
 
+const orderRoutes = require('./routes/orderRoutes');
+app.use('/api/orders', orderRoutes);
+
 app.get('/', (req, res) => res.send('API running'));
 
 const { initSocket } = require('./socket');
