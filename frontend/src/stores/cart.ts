@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { CartItem } from '@/types';
+import { persist } from 'zustand/middleware';
 
 interface CartState {
     items: CartItem[];
@@ -11,27 +12,37 @@ interface CartState {
     toggleExpanded: () => void;
 }
 
-const useCartStore = create<CartState>((set, get) => ({
-    items: [],
-    isExpanded: false,
-    addItem: (newItem) =>
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      isExpanded: false,
+      addItem: (item) =>
         set((state) => {
-            const existingIndex = state.items.findIndex((i) => i.id === newItem.id);
-            if (existingIndex >= 0) {
-            // Đã có -> cập nhật quantity
-            const updatedItems = state.items.map((item, index) =>
-                index === existingIndex
-                ? { ...item, quantity: item.quantity + (newItem.quantity || 1) }
-                : item
-            );
-            return { items: updatedItems };
-            }
-            // Chưa có -> thêm mới
-            return { items: [...state.items, { ...newItem, quantity: newItem.quantity || 1 }] };
+          const existing = state.items.find((i) => i.id === item.id);
+          if (existing) {
+            return {
+              items: state.items.map((i) =>
+                i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+              ),
+            };
+          }
+          return { items: [...state.items, { ...item, quantity: 1 }] };
         }),
-    removeItem: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
-    clearCart: () => set({ items: [] }),
-    getTotal: () => get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-    toggleExpanded: () => set((state) => ({ isExpanded: !state.isExpanded })),
-}));
+      removeItem: (id) =>
+        set((state) => ({
+          items: state.items.filter((i) => i.id !== id),
+        })),
+      clearCart: () => set({ items: [] }),
+      getTotal: () => {
+        return get().items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+      },
+      toggleExpanded: () => set((s) => ({ isExpanded: !s.isExpanded })),
+    }),
+    {
+      name: 'cart-storage', 
+      partialize: (state) => ({ items: state.items }), 
+    }
+  )
+);
 export default useCartStore;
