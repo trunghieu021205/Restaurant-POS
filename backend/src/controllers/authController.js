@@ -6,24 +6,36 @@ const allowedRoles = ['user', 'admin'];
 
 exports.register = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
-        if (!name || !email || !password || !role) {
+        const { name, email, password } = req.body;
+        if (!name || !email || !password) {
             return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
-        }
-        if (!allowedRoles.includes(role)) {
-            return res.status(400).json({ message: 'Vai trò không hợp lệ' });
         }
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(409).json({ message: 'Email đã được sử dụng' });
         }
         const hash = await bcrypt.hash(password, 10);
-        const user = await User.create({ name, email, password: hash, role });
-        res.status(201).json({ id: user._id, email: user.email, role: user.role });
+        const user = await User.create({ name, email, password: hash, role: 'user' });
+
+        const token = jwt.sign(
+            { id: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.status(201).json({ token, 
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+         });
     } catch (error) {
+        console.error('Register error:', error);
         res.status(500).json({ message: 'Đăng ký thất bại' });
     }
-};
+}
 
 exports.login = async (req, res) => {
     try {
@@ -40,7 +52,14 @@ exports.login = async (req, res) => {
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
-        res.json({ token, role: user.role, name: user.name });
+        res.json({ token,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
     } catch (error) {
         res.status(500).json({ message: 'Đăng nhập thất bại' });
     }
