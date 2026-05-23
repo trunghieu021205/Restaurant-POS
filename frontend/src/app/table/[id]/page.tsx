@@ -6,6 +6,8 @@ import MenuSkeleton from "@/components/menu/MenuSkeleton";
 import Cart from "@/components/cart/Cart";
 import type { CartItem } from "@/types";
 import useCartStore from "@/stores/cart";
+import { ErrorBoundary } from "react-error-boundary";
+import ErrorFallback from "@/components/ErrorFallback";
 
 const dummyMenu: CartItem[] = [
   {
@@ -78,14 +80,18 @@ export default function TablePage({ params }: { params: Params }) {
   const rightPadding = isExpanded ? "lg:pr-80" : "lg:pr-20"; // 320px hoặc 80px
   if (loading) return <MenuSkeleton />;
   return (
-    <div className="min-h-[70vh] flex flex-col lg:flex-row">
-      <div className={`flex-1 p-4 ${rightPadding} transition-all duration-300`}>
-        <h1 className="text-2xl md:text-3xl font-bold text-neutral-800 mb-6">
-          Bàn số {id}
-        </h1>
-        <MenuGrid items={menu} />
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <div className="min-h-[70vh] flex flex-col lg:flex-row">
+        <div
+          className={`flex-1 p-4 ${rightPadding} transition-all duration-300`}
+        >
+          <h1 className="text-2xl md:text-3xl font-bold text-neutral-800 mb-6">
+            Bàn số {id}
+          </h1>
+          <MenuGrid items={menu} />
+        </div>
+        <Cart />
       </div>
-      <Cart />
-    </div>
+    </ErrorBoundary>
   );
 }
