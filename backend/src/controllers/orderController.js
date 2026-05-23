@@ -95,3 +95,45 @@ exports.createOrder = async (req, res) => {
     }
 };
 
+exports.updateOrderStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!status || !['pending', 'cooking', 'done'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status value' });
+        }
+
+        const order = await Order.findById(id)
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        const transition = {pending: ['cooking'], cooking: ['done']};
+
+        if (!transition[order.status]?.includes(status)) {
+            return res.status(400).json({ 
+                message: `Invalid status transition from ${order.status} to ${status}` 
+            });
+        }
+
+        order.status = status;
+        await order.save();
+
+        const payload = {
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            tableId: order.tableId,
+            status: order.status,
+            updatedAt: order.updatedAt
+        }
+
+        getIO().to('kitchen').emit('order_status_updated', payload);
+        getIO().to(`table_${order.tableId}`).emit('order_status_updated', payload);
+
+        return res.json({ message: 'Order status updated', order });
+    } catch (error) {
+        console.error('Update order status error:', error);
+        return res.status(500).json({ message: 'Failed to update order status' });
+    }
+};
