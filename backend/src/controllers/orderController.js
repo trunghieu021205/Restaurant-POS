@@ -128,8 +128,13 @@ exports.updateOrderStatus = async (req, res) => {
             updatedAt: order.updatedAt
         }
 
-        getIO().to('kitchen').emit('order_status_updated', payload);
-        getIO().to(`table_${order.tableId}`).emit('order_status_updated', payload);
+        try {
+            const io = getIO();
+            io.to('kitchen').emit('order_status_updated', payload);
+            io.to(`table_${order.tableId}`).emit('order_status_updated', payload);
+        } catch (emitError) {
+            console.error('Emit order_status_updated failed:', emitError);
+        }
 
         return res.json({ message: 'Order status updated', order });
     } catch (error) {
