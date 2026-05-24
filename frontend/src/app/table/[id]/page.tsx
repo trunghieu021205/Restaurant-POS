@@ -6,8 +6,10 @@ import MenuSkeleton from "@/components/menu/MenuSkeleton";
 import Cart from "@/components/cart/Cart";
 import type { CartItem } from "@/types";
 import useCartStore from "@/stores/cart";
+import useBillStore from "@/stores/bill";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "@/components/ErrorFallback";
+import { BillSheet } from "@/components/bill/BillSheet";
 
 const dummyMenu: CartItem[] = [
   {
@@ -66,7 +68,13 @@ export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState<CartItem[]>([]);
+  const { isOpen: billOpen, closeBill, setTableId } = useBillStore();
   const isExpanded = useCartStore((state) => state.isExpanded);
+
+  useEffect(() => {
+    setTableId(id);
+    return () => setTableId(null);
+  }, [id, setTableId]);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1500);
@@ -91,6 +99,7 @@ export default function TablePage({ params }: { params: Params }) {
           <MenuGrid items={menu} />
         </div>
         <Cart />
+        <BillSheet tableId={id} open={billOpen} onClose={closeBill} />
       </div>
     </ErrorBoundary>
   );

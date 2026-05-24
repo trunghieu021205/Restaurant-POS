@@ -10,6 +10,8 @@ interface CartState {
     clearCart: () => void;
     getTotal: () => number;
     toggleExpanded: () => void;
+    setExpanded: (expanded: boolean) => void;  
+    collapseCart: () => void;
 }
 
 export const useCartStore = create<CartState>()(
@@ -38,7 +40,9 @@ export const useCartStore = create<CartState>()(
       getTotal: () => {
         return get().items.reduce((sum, i) => sum + i.price * i.quantity, 0);
       },
-      toggleExpanded: () => set((s) => ({ isExpanded: !s.isExpanded })),
+        toggleExpanded: () => set((s) => ({ isExpanded: !s.isExpanded })),
+        setExpanded: (expanded) => set({ isExpanded: expanded }),      
+        collapseCart: () => set({ isExpanded: false }),              
     }),
     {
       name: 'cart-storage', 

@@ -4,6 +4,7 @@ import useCartStore from "@/stores/cart";
 import type { CartItem } from "@/types";
 import { showSuccessToast } from "@/lib/toast";
 import { Minus, Plus } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 interface MenuItemCardProps {
   item: CartItem;
@@ -47,7 +48,7 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
         <div className="mt-auto space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-primary-600 font-bold text-lg">
-              {item.price.toLocaleString()}đ
+              {formatCurrency(item.price)}
             </span>
 
             {/* Nút tăng giảm số lượng */}
