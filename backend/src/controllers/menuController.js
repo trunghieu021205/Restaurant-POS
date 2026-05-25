@@ -5,7 +5,7 @@ exports.getMenu = async (req, res) => {
     try {
         const menuItems = await MenuItem.find().sort({categoryId: 1, name: 1})
         
-        const formattedMenu = menuItems.reduce((item) => ({
+        const formattedMenu = menuItems.map((item) => ({
             id: item._id,
             name: item.name,
             price: item.price,

@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require('../models/User')
 
-const allowedRoles = ['user', 'admin'];
+
 
 exports.register = async (req, res) => {
     try {
@@ -37,6 +37,34 @@ exports.register = async (req, res) => {
     }
 }
 
+exports.registerStaff = async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+        if (!name || !email || !password) {
+            return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
+        }
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(409).json({ message: 'Email đã được sử dụng' });
+        }
+        const hash = await bcrypt.hash(password, 10);
+        const user = await User.create({ name, email, password: hash, role: 'staff' });
+
+        res.status(201).json({
+            message: 'Tạo tài khoản staff thành công',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        console.error('Register staff error:', error);
+        res.status(500).json({ message: 'Tạo tài khoản staff thất bại' });
+    }
+}
+
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -61,6 +89,7 @@ exports.login = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ message: 'Đăng nhập thất bại' });
     }
 }
