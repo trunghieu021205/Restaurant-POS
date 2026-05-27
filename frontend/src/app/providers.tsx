@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "@/hooks/useAuth";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   // Khởi tạo QueryClient chỉ một lần bằng useState
@@ -20,26 +21,28 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: "var(--color-primary-50)",
-            color: "var(--color-primary-800)",
-            borderRadius: "var(--radius-btn)",
-            fontSize: "0.875rem",
-          },
-          success: {
-            iconTheme: {
-              primary: "var(--color-success-500)",
-              secondary: "white",
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        {children}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: "var(--color-primary-50)",
+              color: "var(--color-primary-800)",
+              borderRadius: "var(--radius-btn)",
+              fontSize: "0.875rem",
             },
-          },
-        }}
-      />
-    </QueryClientProvider>
+            success: {
+              iconTheme: {
+                primary: "var(--color-success-500)",
+                secondary: "white",
+              },
+            },
+          }}
+        />
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }
