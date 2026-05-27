@@ -8,7 +8,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     | "outline"
     | "secondary"
     | "ghost"
-    | "link";
+    | "link"
+    | "danger";
   size?: "default" | "sm" | "lg" | "icon";
 }
 
@@ -29,6 +30,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
       ghost: "hover:bg-accent hover:text-accent-foreground",
       link: "text-primary underline-offset-4 hover:underline",
+      danger: "bg-red-500 text-white hover:bg-red-600 shadow-lg",
     };
 
     const sizes = {

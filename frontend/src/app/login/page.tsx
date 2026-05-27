@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FormInput from '@/components/forms/FormInput';
 import useAuthStore from '@/stores/auth';
+import { authService } from '@/services/auth';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Vui lòng nhập email').email('Email không hợp lệ'),
@@ -35,14 +36,8 @@ export default function LoginPage() {
     setIsLoading(true);
     setServerError('');
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || 'Đăng nhập thất bại');
-      setAuth(json.token, json.user);
+      const response = await authService.login(data);
+      setAuth(response.token, response.user);
       router.push('/');
     } catch (error: unknown) {
       if (error instanceof Error) {

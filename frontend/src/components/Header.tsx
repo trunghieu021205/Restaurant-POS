@@ -41,7 +41,7 @@ export default function Header() {
   const navLinks = [
     ...(isStaffOrAdmin
       ? [
-          { href: "/menu", label: "Thực đơn" },
+          { href: "/admin/menu", label: "Thực đơn" },
           { href: "/kitchen", label: "Bếp" },
         ]
       : []),
