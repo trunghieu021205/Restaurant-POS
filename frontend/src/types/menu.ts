@@ -8,6 +8,7 @@ export interface MenuItem {
   image?: string;
   category?: string;
   isAvailable: boolean;
+  isToday?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -20,6 +21,7 @@ export interface MenuFormData {
   image?: string;
   category?: string;
   isAvailable: boolean;
+  isToday: boolean;
 }
 
 export interface MenuFilters {
