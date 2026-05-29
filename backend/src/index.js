@@ -34,6 +34,9 @@ app.use('/api/payments', paymentRoutes);
 const adminRoutes = require('./routes/adminRoutes');
 app.use('/api/admin', adminRoutes);
 
+const cartRoutes = require('./routes/cartRoutes');
+app.use('/api/cart', cartRoutes);
+
 app.get('/', (req, res) => res.send('API running'));
 
 const { initSocket } = require('./socket');
