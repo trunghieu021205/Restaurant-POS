@@ -142,3 +142,24 @@ exports.updateOrderStatus = async (req, res) => {
         return res.status(500).json({ message: 'Failed to update order status' });
     }
 };
+
+// GET api/orders?status=pending|cooking|done|paid|all
+exports.getOrders = async (req, res) => {
+    try {
+        const { status } = req.query;
+        let query = {};
+        
+        // Lọc order theo status (pending, cooking, done, paid...)
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+        const orders = await Order.find(query)
+            .populate('tableId', 'number') // Lấy số bàn
+            .populate('user', 'name')
+            .populate('items.menuItemId', 'name price image') // Lấy tên, giá món ăn
+            .sort({ createdAt: -1 });
+        res.json(orders);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi lấy danh sách đơn hàng' });
+    }
+};

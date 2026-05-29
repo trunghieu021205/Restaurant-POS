@@ -3,20 +3,48 @@ const MenuItem = require('../models/MenuItem');
 // GET /api/menu
 exports.getMenu = async (req, res) => {
     try {
-        const menuItems = await MenuItem.find().sort({categoryId: 1, name: 1})
-        
-        const formattedMenu = menuItems.map((item) => ({
-            id: item._id,
-            name: item.name,
-            price: item.price,
-            quantity: 1,
-            image: item.image || item.imageUrl || '',
-            description: item.description
-        }));
-
-        res.json(formattedMenu);
+        // Lấy params từ query URL
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+        const categoryId = req.query.category || ''; // Frontend gửi category
+        const status = req.query.status || ''; // 'available' hoặc 'unavailable'
+        let query = {};
+        // Tìm kiếm theo tên hoặc mô tả
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+        // Lọc theo Category
+        if (categoryId && categoryId !== 'all') {
+            query.categoryId = categoryId; 
+        }
+        // Lọc theo Trạng thái
+        if (status && status !== 'all') {
+            query.isAvailable = status === 'available';
+        }
+        const skip = (page - 1) * limit;
+        // Chạy song song lấy data và tổng số lượng
+        const [items, total] = await Promise.all([
+            MenuItem.find(query)
+                .sort({ updatedAt: -1 }) // Trả về món mới nhất trước
+                .skip(skip)
+                .limit(limit),
+            MenuItem.countDocuments(query)
+        ]);
+        // Cấu trúc response giống hệt Frontend mong muốn
+        res.json({
+            items,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
-        return res.status(500).json({message: 'Failed to fetch menu'});
+        console.error('Error fetching menu:', error);
+        return res.status(500).json({ message: 'Failed to fetch menu' });
     }
 };
 

@@ -37,6 +37,9 @@ app.use('/api/admin', adminRoutes);
 const cartRoutes = require('./routes/cartRoutes');
 app.use('/api/cart', cartRoutes);
 
+const uploadRoutes = require('./routes/uploadRoutes');
+app.use('/api/upload', uploadRoutes);
+
 app.get('/', (req, res) => res.send('API running'));
 
 const { initSocket } = require('./socket');
