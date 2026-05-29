@@ -1,6 +1,22 @@
 const Cart = require('../models/Cart');
 const MenuItem = require('../models/MenuItem');
 
+const formatCartItem = (item) => {
+    const menuItem = item.menuItemId;
+    return {
+        id: menuItem._id.toString(),
+        name: menuItem.name,
+        price: menuItem.price,
+        quantity: item.quantity,
+        image: menuItem.image || undefined,
+        description: menuItem.description || ''
+    };
+};
+
+const formatCartResponse = (cart) => ({
+    items: cart.items.map(formatCartItem)
+});
+
 exports.getCart = async (req, res) => {
     try {
         const { tableId } = req.params;
@@ -8,7 +24,7 @@ exports.getCart = async (req, res) => {
         if (!cart) {
             cart = await Cart.create({ tableId, items: [] });
         }
-        res.json(cart);
+        res.json(formatCartResponse(cart));
     } catch (error) {
         res.status(500).json({ message: 'Lỗi khi lấy giỏ hàng' });
     }
@@ -17,7 +33,8 @@ exports.getCart = async (req, res) => {
 exports.addToCart = async (req, res) => {
     try {
         const { tableId } = req.params;
-        const { menuItemId, quantity = 1, note = '' } = req.body;
+        const { quantity = 1 } = req.body;
+        const menuItemId = req.body.menuItemId || req.body.id;
 
         const menuItem = await MenuItem.findById(menuItemId);
         if (!menuItem || !menuItem.isAvailable) {
@@ -29,18 +46,16 @@ exports.addToCart = async (req, res) => {
             cart = new Cart({ tableId, items: [] });
         }
 
-        // Kiểm tra món ăn đã có trong giỏ hàng chưa
         const existingItemIndex = cart.items.findIndex(item => item.menuItemId.toString() === menuItemId);
-        
         if (existingItemIndex > -1) {
             cart.items[existingItemIndex].quantity += quantity;
-            if (note) cart.items[existingItemIndex].note = note;
         } else {
-            cart.items.push({ menuItemId, quantity, note });
+            cart.items.push({ menuItemId, quantity });
         }
 
         await cart.save();
-        res.json(cart);
+        await cart.populate('items.menuItemId');
+        res.json(formatCartResponse(cart));
     } catch (error) {
         res.status(500).json({ message: 'Lỗi khi thêm vào giỏ hàng' });
     }
@@ -55,7 +70,8 @@ exports.removeFromCart = async (req, res) => {
 
         cart.items = cart.items.filter(item => item.menuItemId.toString() !== menuItemId);
         await cart.save();
-        res.json(cart);
+        await cart.populate('items.menuItemId');
+        res.json(formatCartResponse(cart));
     } catch (error) {
         res.status(500).json({ message: 'Lỗi khi xóa món khỏi giỏ hàng' });
     }

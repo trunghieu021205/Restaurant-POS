@@ -10,7 +10,7 @@ exports.getMenu = async (req, res) => {
             name: item.name,
             price: item.price,
             quantity: 1,
-            image: item.image || item.imageUrl || '',
+            image: item.image || '',
             description: item.description
         }));
 
