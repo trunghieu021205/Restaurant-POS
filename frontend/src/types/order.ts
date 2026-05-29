@@ -15,6 +15,8 @@ export interface Order {
     status: 'pending' | 'cooking' | 'done' | 'paid' | 'cancelled';
     totalAmount: number;
     subTotal: number;
+    paymentMethod?: 'cash' | 'credit_card' | 'e_wallet';
+    paidAt?: string;
     createdAt?: string;
     updatedAt?: string;
 }
