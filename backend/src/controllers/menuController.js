@@ -29,6 +29,7 @@ exports.getMenu = async (req, res) => {
         // Chạy song song lấy data và tổng số lượng
         const [items, total] = await Promise.all([
             MenuItem.find(query)
+                .populate('categoryId')
                 .sort({ updatedAt: -1 }) // Trả về món mới nhất trước
                 .skip(skip)
                 .limit(limit),
@@ -51,7 +52,9 @@ exports.getMenu = async (req, res) => {
 // GET /api/menu/today
 exports.getTodayMenu = async (req, res) => {
     try {
-        const items = await MenuItem.find({ isToday: true }).sort({name: 1});
+        const items = await MenuItem.find({ isToday: true })
+            .populate('categoryId')
+            .sort({ name: 1 });
         res.json(items);
     } catch (error) {
         console.error('Error fetching today\'s menu:', error);
@@ -62,7 +65,7 @@ exports.getTodayMenu = async (req, res) => {
 // GET /api/menu/:id
 exports.getMenuItem = async (req, res) => {
     try {
-        const item = await MenuItem.findById(req.params.id);
+        const item = await MenuItem.findById(req.params.id).populate('categoryId');
         if (!item) {
             return res.status(404).json({ message: 'Menu item not found' });
         }

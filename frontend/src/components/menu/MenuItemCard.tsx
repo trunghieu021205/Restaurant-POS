@@ -28,11 +28,13 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
     setQuantity(1);
   };
 
+  const imageSrc = item.image && item.image !== "" ? item.image : "/placeholder.jpg";
+
   return (
     <div className="bg-white rounded-card shadow-card hover:shadow-card-hover transition-all overflow-hidden flex flex-col">
       <div className="relative h-40 sm:h-48 overflow-hidden">
         <img
-          src={item.image || "/placeholder.jpg"}
+          src={imageSrc}
           alt={item.name}
           className="w-full h-full object-cover"
         />

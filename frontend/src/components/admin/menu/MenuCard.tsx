@@ -18,11 +18,13 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
       currency: "VND",
     }).format(price);
 
+  const hasImage = item.image && item.image !== "";
+
   return (
     <div className="group bg-white rounded-radius-card shadow-card hover:shadow-card-hover transition-all border border-neutral-100 overflow-hidden flex flex-col">
       {/* Image */}
       <div className="relative h-44 overflow-hidden bg-neutral-100">
-        {item.image ? (
+        {hasImage ? (
           <img
             src={item.image}
             alt={item.name}
