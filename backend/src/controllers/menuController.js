@@ -1,20 +1,60 @@
 const MenuItem = require('../models/MenuItem');
 
+const formatMenuItemResponse = (item) => ({
+    id: item._id.toString(),
+    name: item.name,
+    price: item.price,
+    description: item.description || '',
+    image: item.image || item.imageUrl || '',
+    categoryId: item.categoryId,
+    isAvailable: item.isAvailable,
+    isToday: item.isToday,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt
+});
+
 // GET /api/menu
 exports.getMenu = async (req, res) => {
     try {
-        const menuItems = await MenuItem.find().sort({categoryId: 1, name: 1})
-        
-        const formattedMenu = menuItems.map((item) => ({
-            id: item._id,
-            name: item.name,
-            price: item.price,
-            quantity: 1,
-            image: item.image || '',
-            description: item.description
-        }));
-
-        res.json(formattedMenu);
+        // Lấy params từ query URL
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+        const categoryId = req.query.category || ''; // Frontend gửi category
+        const status = req.query.status || ''; // 'available' hoặc 'unavailable'
+        let query = {};
+        // Tìm kiếm theo tên hoặc mô tả
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+        // Lọc theo Category
+        if (categoryId && categoryId !== 'all') {
+            query.categoryId = categoryId; 
+        }
+        // Lọc theo Trạng thái
+        if (status && status !== 'all') {
+            query.isAvailable = status === 'available';
+        }
+        const skip = (page - 1) * limit;
+        // Chạy song song lấy data và tổng số lượng
+        const [items, total] = await Promise.all([
+            MenuItem.find(query)
+                .sort({ updatedAt: -1 }) // Trả về món mới nhất trước
+                .skip(skip)
+                .limit(limit),
+            MenuItem.countDocuments(query)
+        ]);
+        // Cấu trúc response tương thích với frontend menu/cart item
+        res.json({
+            items: items.map(formatMenuItemResponse),
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
         return res.status(500).json({message: 'Failed to fetch menu'});
     }
@@ -24,7 +64,7 @@ exports.getMenu = async (req, res) => {
 exports.getTodayMenu = async (req, res) => {
     try {
         const items = await MenuItem.find({ isToday: true }).sort({name: 1});
-        res.json(items);
+        res.json(items.map(formatMenuItemResponse));
     } catch (error) {
         console.error('Error fetching today\'s menu:', error);
         return res.status(500).json({message: 'Failed to fetch today\'s menu'});
@@ -38,7 +78,7 @@ exports.getMenuItem = async (req, res) => {
         if (!item) {
             return res.status(404).json({ message: 'Menu item not found' });
         }
-        res.json(item);
+        res.json(formatMenuItemResponse(item));
     } catch (error) {
         console.error('Error fetching menu item:', error);
         return res.status(500).json({ message: 'Failed to fetch menu item' });
@@ -48,7 +88,8 @@ exports.getMenuItem = async (req, res) => {
 // POST /api/menu (admin)
 exports.createMenuItem = async (req, res) => {
   try {
-    const data = req.body;
+    const data = { ...req.body };
+    if (data.imageUrl && !data.image) data.image = data.imageUrl;
     const item = await MenuItem.create(data);
     res.status(201).json(item);
   } catch (err) {
@@ -60,7 +101,9 @@ exports.createMenuItem = async (req, res) => {
 // PUT /api/menu/:id (admin)
 exports.updateMenuItem = async (req, res) => {
   try {
-    const item = await MenuItem.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = { ...req.body };
+    if (data.imageUrl && !data.image) data.image = data.imageUrl;
+    const item = await MenuItem.findByIdAndUpdate(req.params.id, data, { new: true });
     if (!item) return res.status(404).json({ message: 'Menu item not found' });
     res.json(item);
   } catch (err) {

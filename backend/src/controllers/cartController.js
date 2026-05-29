@@ -36,6 +36,10 @@ exports.addToCart = async (req, res) => {
         const { quantity = 1 } = req.body;
         const menuItemId = req.body.menuItemId || req.body.id;
 
+        if (!menuItemId) {
+            return res.status(400).json({ message: 'Missing menu item id' });
+        }
+
         const menuItem = await MenuItem.findById(menuItemId);
         if (!menuItem || !menuItem.isAvailable) {
             return res.status(400).json({ message: 'Món ăn không tồn tại hoặc đã hết' });
