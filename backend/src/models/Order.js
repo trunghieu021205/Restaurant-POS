@@ -19,4 +19,22 @@ const OrderSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
+OrderSchema.set('toJSON', {
+  transform: (document, returnedObject) => {
+    returnedObject.id = returnedObject._id.toString();
+    delete returnedObject._id;
+    delete returnedObject.__v;
+
+    if (returnedObject.items && Array.isArray(returnedObject.items)) {
+      returnedObject.items = returnedObject.items.map((item) => {
+        if (item._id) {
+          item.id = item._id.toString();
+          delete item._id;
+        }
+        return item;
+      });
+    }
+  }
+});
+
 module.exports = mongoose.model('Order', OrderSchema);
