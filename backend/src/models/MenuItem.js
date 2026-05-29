@@ -4,7 +4,7 @@ const MenuItemSchema = new mongoose.Schema({
     name: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
     categoryId: { type: mongoose.Schema.Types.ObjectId },
-    description: { type: String },
+    description: { type: String, default: '' },
     imageUrl: { type: String, default: '' },
     isAvailable: { type: Boolean, required: true, default: true },
     isToday: { type: Boolean, required: true, default: false }
