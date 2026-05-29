@@ -41,7 +41,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
         Hình ảnh món ăn
       </label>
 
-      {value ? (
+      {value && value !== "" ? (
         <div className="relative w-full h-40 rounded-xl overflow-hidden border-2 border-neutral-200 group">
           <img
             src={value}
