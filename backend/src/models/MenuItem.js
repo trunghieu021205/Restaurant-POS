@@ -13,6 +13,16 @@ const MenuItemSchema = new mongoose.Schema({
 MenuItemSchema.set('toJSON', {
   transform: (document, returnedObject) => {
     returnedObject.id = returnedObject._id.toString();
+
+    if (returnedObject.categoryId && typeof returnedObject.categoryId === 'object') {
+      if (returnedObject.categoryId.name) {
+        returnedObject.category = returnedObject.categoryId.name;
+      }
+      returnedObject.categoryId = returnedObject.categoryId._id
+        ? returnedObject.categoryId._id.toString()
+        : returnedObject.categoryId.toString();
+    }
+
     delete returnedObject._id;
     delete returnedObject.__v;
   }
