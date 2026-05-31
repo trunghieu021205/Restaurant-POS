@@ -6,8 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import FormInput from '@/components/FormInput';
+import FormInput from '@/components/forms/FormInput';
 import useAuthStore from '@/stores/auth';
+import { authService } from '@/services/auth';
 
 const registerSchema = z
   .object({
@@ -43,14 +44,8 @@ export default function RegisterPage() {
     setServerError('');
     try {
       const { confirmPassword, ...payload } = data;
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || 'Đăng ký thất bại');
-      setAuth(json.token, json.user);
+      const response = await authService.register(payload);
+      setAuth(response.token, response.user);
       router.push('/');
     } catch (error: unknown) {
       if (error instanceof Error) {

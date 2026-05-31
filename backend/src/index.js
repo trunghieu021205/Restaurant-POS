@@ -19,10 +19,41 @@ app.use(express.json());
 
 connectDB();
 
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);
+
+const menuRoutes = require('./routes/menuRoutes');
+app.use('/api/menu', menuRoutes);
+
+const orderRoutes = require('./routes/orderRoutes');
+app.use('/api/orders', orderRoutes);
+
+const paymentRoutes = require('./routes/paymentRoutes');
+app.use('/api/payments', paymentRoutes);
+
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/api/admin', adminRoutes);
+
+const cartRoutes = require('./routes/cartRoutes');
+app.use('/api/cart', cartRoutes);
+
+const uploadRoutes = require('./routes/uploadRoutes');
+app.use('/api/upload', uploadRoutes);
+
 app.get('/', (req, res) => res.send('API running'));
 
 const { initSocket } = require('./socket');
 initSocket(io);
 
 const PORT = process.env.PORT || 5000;
+
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use.`);
+    process.exit(1);
+  }
+  console.error('Server error:', err);
+  process.exit(1);
+});
+
 server.listen(PORT, () => console.log(`Server running on ${PORT}`));

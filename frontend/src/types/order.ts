@@ -1,0 +1,20 @@
+
+export interface OrderItem {
+    menuItemId: string;
+    quantity: number;
+    price: number;
+    note?: string;
+}
+
+export interface Order {
+    id: string;
+    orderNumber: string;
+    tableId: string;
+    user?: string;
+    items: OrderItem[];
+    status: 'pending' | 'cooking' | 'done' | 'paid' | 'cancelled';
+    totalAmount: number;
+    subTotal: number;
+    createdAt?: string;
+    updatedAt?: string;
+}
