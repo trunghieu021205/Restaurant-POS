@@ -75,29 +75,42 @@ exports.getPaymentQR = async (req, res) => {
         if (!order) {
             return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
         }
+        if (req.user.role === 'user' && (!order.user || order.user.toString() !== req.user.id)) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
 
         // Tinh toán tổng tiền cần thanh toán
-        const totalAmount = order.totalAmount || order.items.reduce(
-            (sum, item) => sum + (item.price * item.quantity), 0
+        const VAT_RATE = 0.08; // Giữ khớp với tableController
+
+        // subTotal là giá gốc chưa VAT
+        const subTotal = order.totalAmount || order.items.reduce(
+            (sum, item) => sum + item.price * item.quantity, 0
         );
+        const vatAmount = Math.round(subTotal * VAT_RATE);
+        const totalWithVat = subTotal + vatAmount;
 
         // Thông tin ngân hàng từ .env
         const bankId = process.env.BANK_ID;
         const accountNo = process.env.BANK_ACCOUNT;
         const accountName = process.env.BANK_NAME;
+        if (!bankId || !accountNo || !accountName) {
+            return res.status(500).json({ message: 'Thiếu cấu hình BANK_ID/BANK_ACCOUNT/BANK_NAME' });
+        }
 
         // Noi dung thanh toan theo chuẩn VietQR (có thể tùy chỉnh thêm nếu cần)
-        const qrContent = `THANH TOAN ${order._id.toString().slice(-8).toUpperCase()}`;
+        const transferContent = `THANH TOAN ${order._id.toString().slice(-8).toUpperCase()}`;
 
         // Tạo URL ảnh QR từ API VietQR (miễn phí, không cần đăng ký)
         const vietQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png`
-                        + `?amount=${totalAmount}`
+                        + `?amount=${totalWithVat}`
                         + `&addInfo=${encodeURIComponent(transferContent)}`
                         + `&accountName=${encodeURIComponent(accountName)}`;
         
         res.json({
             orderId: order._id,
-            totalAmount,
+            subTotal,
+            vatAmount,
+            totalAmount: totalWithVat,  // ← Số tiền cuối cùng khách cần trả
             transferContent,
             bankInfo: {
                 bankId,

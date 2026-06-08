@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Table = require('../models/Table');
+const Payments = require('../models/Payments');
 
 const VAT_RATE = 0.08; // VAT 8% khớp với Frontend
 
@@ -64,13 +65,30 @@ exports.checkoutTable = async (req, res) => {
             return res.status(400).json({ message: 'Bàn không có đơn hàng nào cần thanh toán' });
         }
 
+        let tableSubtotal = 0;
+        let orderIds = [];
         // Đổi trạng thái tất cả order của bàn này thành "paid"
         for (let order of activeOrders) {
             order.status = 'paid';
             order.paymentMethod = paymentMethod;
             order.paidAt = new Date();
             await order.save();
+            
+            const orderSubtotal = order.totalAmount || order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            tableSubtotal += orderSubtotal;
+            orderIds.push(order._id);
         }
+        const tableVatAmount = Math.round(tableSubtotal * VAT_RATE);
+        const tableTotalAmountWithVat = tableSubtotal + tableVatAmount;
+
+        // Lưu thông tin thanh toán vào collection Payments
+        await Payments.create({
+            orderIds: orderIds,
+            tableId: tableId,
+            amount: tableTotalAmountWithVat,
+            method: paymentMethod || 'cash',
+            paidBy: req.user?.id
+        });
 
         // Chuyển bàn thành trống (available)
         await Table.findByIdAndUpdate(tableId, { status: 'available' });
