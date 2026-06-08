@@ -67,7 +67,7 @@ type Params = Promise<{ id: string }>;
 export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
   const [loading, setLoading] = useState(true);
-  const [menu, setMenu] = useState<CartItem[]>([]);
+  const [menu] = useState<CartItem[]>(dummyMenu);
   const { isOpen: billOpen, closeBill, setTableId } = useBillStore();
   const isExpanded = useCartStore((state) => state.isExpanded);
 
@@ -77,27 +77,27 @@ export default function TablePage({ params }: { params: Params }) {
   }, [id, setTableId]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
+    const timer = setTimeout(() => setLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    setMenu(dummyMenu);
-  }, []);
-
-  const rightPadding = isExpanded ? "lg:pr-80" : "lg:pr-20"; // 320px hoặc 80px
   if (loading) return <MenuSkeleton />;
+
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <div className="min-h-[70vh] flex flex-col lg:flex-row">
+      <div className="min-h-[70vh]">
+        {/* Padding phải nhường chỗ cho sidebar desktop */}
         <div
-          className={`flex-1 p-4 ${rightPadding} transition-all duration-300`}
+          className={`transition-all duration-300 ${
+            isExpanded ? "lg:pr-75" : "lg:pr-16"
+          }`}
         >
-          <h1 className="text-2xl md:text-3xl font-bold text-neutral-800 mb-6">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-neutral-800 mb-4 sm:mb-6">
             Bàn số {id}
           </h1>
           <MenuGrid items={menu} />
         </div>
+
         <Cart />
         <BillSheet tableId={id} open={billOpen} onClose={closeBill} />
       </div>
