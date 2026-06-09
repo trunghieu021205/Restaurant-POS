@@ -20,6 +20,9 @@ const storage = new CloudinaryStorage({
 });
 
 // 3. Khởi tạo middleware upload
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // Giới hạn kích thước file tối đa 5MB
+ });
 
 module.exports = { cloudinary, upload };

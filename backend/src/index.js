@@ -40,10 +40,22 @@ app.use('/api/cart', cartRoutes);
 const uploadRoutes = require('./routes/uploadRoutes');
 app.use('/api/upload', uploadRoutes);
 
+const qrRoutes = require('./routes/qrRoutes');
+app.use('/api/qr', qrRoutes);
+
+const categoriesRoutes = require('./routes/categoriesRoutes');
+app.use('/api/categories', categoriesRoutes);
+
 app.get('/', (req, res) => res.send('API running'));
 
 const { initSocket } = require('./socket');
 initSocket(io);
+
+// Thêm kiểm tra socket ready
+if (!io) {
+  console.error('CRITICAL: Socket failed to initialize');
+  process.exit(1);
+}
 
 const PORT = process.env.PORT || 5000;
 
