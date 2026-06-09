@@ -1,25 +1,25 @@
 "use client";
 import { useState } from "react";
 import useCartStore from "@/stores/cart";
-import type { CartItem } from "@/types";
+import type { MenuItem } from "@/types/menu";
 import { showSuccessToast } from "@/lib/toast";
 import { Minus, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
-export default function MenuItemCard({ item }: { item: CartItem }) {
+export default function MenuItemCard({ item }: { item: MenuItem }) {
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
   const addItem = useCartStore((s) => s.addItem);
 
   const handleAddToCart = () => {
-    addItem({ ...item, quantity, note: note.trim() || undefined });
+    addItem(item.id, quantity, note.trim() || undefined);
     showSuccessToast(`Đã thêm ${quantity} ${item.name} vào giỏ hàng`);
     setQuantity(1);
     setNote("");
   };
 
   const imageSrc =
-    item.image && item.image !== "" ? item.image : "/placeholder.jpg";
+    item.imageUrl && item.imageUrl !== "" ? item.imageUrl : "/placeholder.jpg";
 
   return (
     <div className="bg-white rounded-card shadow-card hover:shadow-card-hover transition-all overflow-hidden flex flex-col">

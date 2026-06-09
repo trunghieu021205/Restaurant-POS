@@ -1,8 +1,8 @@
 import MenuItemCard from "@/components/menu/MenuItemCard";
-import type { CartItem } from "@/types";
+import type { MenuItem } from "@/types/menu";
 
 interface MenuGridProps {
-  items: CartItem[];
+  items: MenuItem[];
 }
 
 export default function MenuGrid({ items }: MenuGridProps) {

@@ -40,13 +40,14 @@ export function MenuForm({
       name: "",
       price: 0,
       description: "",
-      image: "",
+      imageUrl: "",
       category: "Món chính",
-      status: "available",
+      isAvailable: true,
+      isToday: false,
     },
   });
 
-  const imageValue = watch("image");
+  const imageUrlValue = watch("imageUrl");
 
   useEffect(() => {
     if (initialData) {
@@ -54,18 +55,20 @@ export function MenuForm({
         name: initialData.name,
         price: initialData.price,
         description: initialData.description,
-        image: initialData.image,
+        imageUrl: initialData.imageUrl,
         category: initialData.category,
-        status: initialData.status,
+        isAvailable: initialData.isAvailable,
+        isToday: initialData.isToday,
       });
     } else {
       reset({
         name: "",
         price: 0,
         description: "",
-        image: "",
+        imageUrl: "",
         category: "Món chính",
-        status: "available",
+        isAvailable: true,
+        isToday: false,
       });
     }
   }, [initialData, reset, open]);
@@ -185,24 +188,30 @@ export function MenuForm({
                     <div className="flex gap-4">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
-                          type="radio"
-                          value="available"
-                          {...register("status")}
+                          type="checkbox"
+                          {...register("isAvailable")}
                           className="w-4 h-4 text-primary-500 focus:ring-primary-500"
                         />
                         <span className="text-sm text-neutral-700">
                           Còn món
                         </span>
                       </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
+                      Món hôm nay
+                    </label>
+                    <div className="flex gap-4">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
-                          type="radio"
-                          value="unavailable"
-                          {...register("status")}
-                          className="w-4 h-4 text-red-500 focus:ring-red-500"
+                          type="checkbox"
+                          {...register("isToday")}
+                          className="w-4 h-4 text-primary-500 focus:ring-primary-500"
                         />
                         <span className="text-sm text-neutral-700">
-                          Hết món
+                          Hiển thị hôm nay
                         </span>
                       </label>
                     </div>
@@ -211,9 +220,9 @@ export function MenuForm({
 
                 {/* Upload ảnh */}
                 <ImageUpload
-                  value={imageValue || ""}
+                  value={imageUrlValue || ""}
                   onChange={(url) =>
-                    setValue("image", url, { shouldDirty: true })
+                    setValue("imageUrl", url, { shouldDirty: true })
                   }
                 />
               </div>

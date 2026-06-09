@@ -1,66 +1,120 @@
 import { create } from 'zustand';
-import { CartItem } from '@/types';
-import { persist } from 'zustand/middleware';
+import { CartItem, Cart } from '@/types/cart';
+import { getCart, addToCart, removeFromCart, clearCart } from '@/services/cart';
 
 interface CartState {
+    tableId: string | null;
     items: CartItem[];
     isExpanded: boolean;
-    addItem: (item: CartItem) => void;
-    removeItem: (id: string) => void;
-    updateNote: (id: string, note: string) => void;
-    clearCart: () => void;
+    isLoading: boolean;
+    error: string | null;
+    fetchCart: (tableId: string) => Promise<void>;
+    addItem: (menuItemId: string, quantity?: number, note?: string) => Promise<void>;
+    removeItem: (menuItemId: string) => Promise<void>;
+    updateNote: (menuItemId: string, note: string) => Promise<void>;
+    clearCart: () => Promise<void>;
     getTotal: () => number;
     toggleExpanded: () => void;
     setExpanded: (expanded: boolean) => void;
     collapseCart: () => void;
 }
 
-export const useCartStore = create<CartState>()(
-  persist(
-    (set, get) => ({
-      items: [],
-      isExpanded: false,
+export const useCartStore = create<CartState>()((set, get) => ({
+  tableId: null,
+  items: [],
+  isExpanded: false,
+  isLoading: false,
+  error: null,
 
-      addItem: (item) =>
-        set((state) => {
-          const existing = state.items.find((i) => i.id === item.id);
-          const qty = item.quantity || 1;
-          if (existing) {
-            return {
-              items: state.items.map((i) =>
-                i.id === item.id ? { ...i, quantity: i.quantity + qty } : i
-              ),
-            };
-          }
-          return { items: [...state.items, { ...item, quantity: qty }] };
-        }),
-
-      removeItem: (id) =>
-        set((state) => ({
-          items: state.items.filter((i) => i.id !== id),
-        })),
-
-      updateNote: (id, note) =>
-        set((state) => ({
-          items: state.items.map((i) =>
-            i.id === id ? { ...i, note } : i
-          ),
-        })),
-
-      clearCart: () => set({ items: [] }),
-
-      getTotal: () =>
-        get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-
-      toggleExpanded: () => set((s) => ({ isExpanded: !s.isExpanded })),
-      setExpanded: (expanded) => set({ isExpanded: expanded }),
-      collapseCart: () => set({ isExpanded: false }),
-    }),
-    {
-      name: 'cart-storage',
-      partialize: (state) => ({ items: state.items }),
+  fetchCart: async (tableId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const cart = await getCart(tableId);
+      set({ tableId, items: cart.items, isLoading: false });
+    } catch (error) {
+      set({ error: 'Failed to fetch cart', isLoading: false });
     }
-  )
-);
+  },
+
+  addItem: async (menuItemId: string, quantity = 1, note = '') => {
+    const { tableId } = get();
+    if (!tableId) {
+      set({ error: 'No table selected' });
+      return;
+    }
+
+    set({ isLoading: true, error: null });
+    try {
+      const cart = await addToCart(tableId, menuItemId, quantity, note);
+      set({ items: cart.items, isLoading: false });
+    } catch (error) {
+      set({ error: 'Failed to add item to cart', isLoading: false });
+    }
+  },
+
+  removeItem: async (menuItemId: string) => {
+    const { tableId } = get();
+    if (!tableId) {
+      set({ error: 'No table selected' });
+      return;
+    }
+
+    set({ isLoading: true, error: null });
+    try {
+      const cart = await removeFromCart(tableId, menuItemId);
+      set({ items: cart.items, isLoading: false });
+    } catch (error) {
+      set({ error: 'Failed to remove item from cart', isLoading: false });
+    }
+  },
+
+  updateNote: async (menuItemId: string, note: string) => {
+    const { tableId, items } = get();
+    if (!tableId) {
+      set({ error: 'No table selected' });
+      return;
+    }
+
+    // Optimistic update
+    set({ items: items.map((i) =>
+      i.menuItemId === menuItemId ? { ...i, note } : i
+    ) });
+
+    try {
+      const cart = await addToCart(tableId, menuItemId, 1, note);
+      set({ items: cart.items });
+    } catch (error) {
+      set({ error: 'Failed to update note' });
+    }
+  },
+
+  clearCart: async () => {
+    const { tableId } = get();
+    if (!tableId) {
+      set({ error: 'No table selected' });
+      return;
+    }
+
+    set({ isLoading: true, error: null });
+    try {
+      await clearCart(tableId);
+      set({ items: [], isLoading: false });
+    } catch (error) {
+      set({ error: 'Failed to clear cart', isLoading: false });
+    }
+  },
+
+  getTotal: () => {
+    const { items } = get();
+    return items.reduce((sum, item) => {
+      const price = item.menuItem?.price || 0;
+      return sum + price * item.quantity;
+    }, 0);
+  },
+
+  toggleExpanded: () => set((s) => ({ isExpanded: !s.isExpanded })),
+  setExpanded: (expanded) => set({ isExpanded: expanded }),
+  collapseCart: () => set({ isExpanded: false }),
+}));
 
 export default useCartStore;

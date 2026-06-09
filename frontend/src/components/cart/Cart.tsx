@@ -4,7 +4,7 @@ import { ShoppingCart, X, Trash2 } from "lucide-react";
 import useCartStore from "@/stores/cart";
 import useBillStore from "@/stores/bill";
 import { formatCurrency } from "@/lib/utils";
-import type { CartItem } from "@/types";
+import type { CartItem } from "@/types/cart";
 
 // ── Item riêng biệt để isolate state ────────────────────────────
 function CartItemRow({
@@ -18,6 +18,7 @@ function CartItemRow({
 }) {
   // State note nằm trong component con → không ảnh hưởng item khác
   const [note, setNote] = useState(item.note ?? "");
+  const menuItem = item.menuItem;
 
   return (
     <div className="bg-neutral-50 rounded-xl px-3 py-2.5 space-y-2">
@@ -25,18 +26,18 @@ function CartItemRow({
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-neutral-800 leading-tight truncate">
-            {item.name}
+            {menuItem?.name || 'Unknown item'}
           </p>
           <p className="text-xs text-neutral-500 mt-0.5">
-            {item.quantity} × {formatCurrency(item.price)}
+            {item.quantity} × {formatCurrency(menuItem?.price || 0)}
           </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="text-sm font-semibold text-primary-600">
-            {formatCurrency(item.price * item.quantity)}
+            {formatCurrency((menuItem?.price || 0) * item.quantity)}
           </span>
           <button
-            onClick={() => onRemove(item.id)}
+            onClick={() => onRemove(item.menuItemId)}
             className="p-1 rounded-full hover:bg-error-50 text-neutral-300 hover:text-error-500 transition-colors"
             aria-label="Xóa món"
           >
@@ -50,7 +51,7 @@ function CartItemRow({
         value={note}
         onChange={(e) => {
           setNote(e.target.value);
-          onNoteChange(item.id, e.target.value);
+          onNoteChange(item.menuItemId, e.target.value);
         }}
         placeholder="Ghi chú: ít cay, không hành, thêm đá..."
         maxLength={120}
@@ -142,7 +143,7 @@ export default function Cart() {
           >
             {items.map((item) => (
               <CartItemRow
-                key={item.id}
+                key={item.menuItemId}
                 item={item}
                 onRemove={removeItem}
                 onNoteChange={updateNote}

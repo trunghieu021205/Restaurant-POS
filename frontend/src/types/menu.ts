@@ -5,7 +5,7 @@ export interface MenuItem {
   price: number;
   categoryId?: string;
   description: string;
-  image?: string;
+  imageUrl?: string;
   category?: string;
   isAvailable: boolean;
   isToday?: boolean;
@@ -18,7 +18,7 @@ export interface MenuFormData {
   price: number;
   categoryId?: string;
   description: string;
-  image?: string;
+  imageUrl?: string;
   category?: string;
   isAvailable: boolean;
   isToday: boolean;

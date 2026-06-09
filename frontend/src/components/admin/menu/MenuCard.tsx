@@ -18,7 +18,7 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
       currency: "VND",
     }).format(price);
 
-  const hasImage = item.image && item.image !== "";
+  const hasImage = item.imageUrl && item.imageUrl !== "";
 
   return (
     <div className="group bg-white rounded-radius-card shadow-card hover:shadow-card-hover transition-all border border-neutral-100 overflow-hidden flex flex-col">
@@ -26,7 +26,7 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
       <div className="relative h-44 overflow-hidden bg-neutral-100">
         {hasImage ? (
           <img
-            src={item.image}
+            src={item.imageUrl}
             alt={item.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -39,19 +39,19 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
         <div className="absolute top-3 left-3">
           <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-              item.status === "available"
+              item.isAvailable
                 ? "bg-black/80 text-success-600"
                 : "bg-black/80 text-error-600"
             }`}
           >
             <Circle
               className={`w-2 h-2 fill-current ${
-                item.status === "available"
+                item.isAvailable
                   ? "text-success-500"
                   : "text-error-500"
               }`}
             />
-            {item.status === "available" ? "Còn món" : "Hết món"}
+            {item.isAvailable ? "Còn món" : "Hết món"}
           </span>
         </div>
         {/* Action buttons - show on hover */}
