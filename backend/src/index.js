@@ -51,6 +51,12 @@ app.get('/', (req, res) => res.send('API running'));
 const { initSocket } = require('./socket');
 initSocket(io);
 
+// Thêm kiểm tra socket ready
+if (!io) {
+  console.error('CRITICAL: Socket failed to initialize');
+  process.exit(1);
+}
+
 const PORT = process.env.PORT || 5000;
 
 server.on('error', (err) => {

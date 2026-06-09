@@ -83,7 +83,7 @@ exports.getPaymentQR = async (req, res) => {
         const VAT_RATE = 0.08; // Giữ khớp với tableController
 
         // subTotal là giá gốc chưa VAT
-        const subTotal = order.totalAmount || order.items.reduce(
+        const subTotal = order.subTotal ?? order.items.reduce(
             (sum, item) => sum + item.price * item.quantity, 0
         );
         const vatAmount = Math.round(subTotal * VAT_RATE);

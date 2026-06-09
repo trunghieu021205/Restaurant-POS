@@ -1,5 +1,6 @@
 const Categories = require('../models/Categories');
-
+const mongoose = require('mongoose');
+const MenuItem = require('../models/MenuItem');
 // GET /api/categories
 exports.getCategories = async (req, res) => {
     try {
@@ -20,11 +21,6 @@ exports.getCategories = async (req, res) => {
 // Lấy chi tiết 1 danh mục theo ID
 exports.getCategoryById = async (req, res) => {
     try {
-        if (!Categories.schema.path('_id') || !req.params.id) {
-            return res.status(404).json({ message: 'Danh mục không tồn tại' });
-        }
-
-        const mongoose = require('mongoose');
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
             return res.status(404).json({ message: 'Danh mục không tồn tại' });
         }
@@ -76,7 +72,11 @@ exports.createCategory = async (req, res) => {
 // Cập nhật 1 danh mục theo ID (admin)
 exports.updateCategory = async (req, res) => {
     try {
-        const { name } = req.body;
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(404).json({ message: 'Danh mục không tồn tại' });
+        }
+
+        const { name, description, image, isActive, orderIndex } = req.body;
 
         // Nếu có truyền name thì kiểm tra không được để trống và không trùng với danh mục khác
         if (name) {
@@ -91,9 +91,16 @@ exports.updateCategory = async (req, res) => {
             }
         }
 
+        const updateData = {};
+        if (name !== undefined) updateData.name = name.trim();
+        if (description !== undefined) updateData.description = description.trim();
+        if (image !== undefined) updateData.image = image;
+        if (isActive !== undefined) updateData.isActive = isActive;
+        if (orderIndex !== undefined) updateData.orderIndex = orderIndex;
+
         const updatedCategory = await Categories.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            updateData,
             { new: true, runValidators: true }
         );
 
@@ -119,17 +126,12 @@ exports.deleteCategory = async (req, res) => {
             return res.status(404).json({ message: 'Danh mục không tồn tại' });
         }
 
-        if (deletedCategory.isActive) {
-            // Xử lý logic khi xóa danh mục đang hoạt động
-            // Ví dụ: Cập nhật các món ăn đang dùng danh mục này về "Không phân loại" hoặc xóa luôn
-            // Ở đây mình sẽ cập nhật các món ăn đang dùng danh mục này về "Không phân loại" (category: null)
-            const MenuItem = require('../models/MenuItem');
-            await MenuItem.updateMany(
-                { categoryId: deletedCategory._id },
-                { $set: { categoryId: null } }
-            );
-            console.log(`Đã cập nhật các món ăn đang dùng danh mục ${deletedCategory.name} về "Không phân loại"`);
-        }
+        // Cập nhật các món ăn đang dùng danh mục này về "Không phân loại" (category: null)
+        await MenuItem.updateMany(
+            { categoryId: deletedCategory._id },
+            { $set: { categoryId: null } }
+        );
+        console.log(`Đã cập nhật các món ăn đang dùng danh mục ${deletedCategory.name} về "Không phân loại"`);
 
         res.json({ message: 'Đã xóa danh mục' });
     } catch (error) {

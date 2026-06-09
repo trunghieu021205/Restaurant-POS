@@ -144,13 +144,24 @@ exports.setTodayMenu = async (req, res) => {
     }
 
     const payload = { changed, action: setAll ? 'setAll' : clearAll ? 'clearAll' : 'updateToday' };
+
+    let socketEmitted = false;
+    let socketError = null;
+
     try {
       getIO().to('kitchen').emit('menu_updated', payload);
+      socketEmitted = true;
     } catch (error) {
       console.error('Error emitting menu_updated event:', error);
+      socketError = error;
     }
 
-    res.json({ message: 'Today menu updated', payload });
+    res.json({ 
+      message: 'Today menu updated', 
+      payload,
+      socketEmitted,
+      socketError: socketError ? undefined : socketError.toString() // Return error message if emit failed
+    });
   } catch (err) {
     console.error('setTodayMenu error:', err);
     res.status(500).json({ message: 'Failed to update today menu' });
