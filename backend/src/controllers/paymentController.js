@@ -7,6 +7,10 @@ exports.processPayment = async (req, res) => {
     try {
         const { orderId, paymentMethod } = req.body;
 
+        if (req.user.role === 'user' && order.user?.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+        
         if (!orderId) {
             return res.status(400).json({ message: 'Thiếu orderId' });
         }

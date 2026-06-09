@@ -8,13 +8,12 @@ const { getIO } = require('../socket');
 exports.createOrder = async (req, res) => {
     try {
         const { tableId, items, note } = req.body;
-        const resolvedTableId = tableId || req.user?.tableId;
 
-        if (!resolvedTableId) {
+        if (!tableId) {
             return res.status(400).json({ message: 'Missing tableId' });
         }
 
-        const table = await Table.findById(resolvedTableId);
+        const table = await Table.findById(tableId);
         if (!table) {
             return res.status(404).json({ message: 'Table not found' });
         }
@@ -53,7 +52,7 @@ exports.createOrder = async (req, res) => {
 
         const order = await Order.create({
             orderNumber: `ORD-${randomUUID()}`,
-            tableId: resolvedTableId,
+            tableId: tableId,
             user: req.user?.id,
             items: orderItems,
             status: 'pending',
