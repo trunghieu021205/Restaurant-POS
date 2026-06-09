@@ -19,7 +19,9 @@ export default function MenuItemCard({ item }: { item: MenuItem }) {
   };
 
   const imageSrc =
-    item.imageUrl && item.imageUrl !== "" ? item.imageUrl : "/placeholder.jpg";
+    item.imageUrl && item.imageUrl !== ""
+      ? item.imageUrl
+      : "/menu/placeholder.jpg";
 
   return (
     <div className="bg-white rounded-card shadow-card hover:shadow-card-hover transition-all overflow-hidden flex flex-col">
