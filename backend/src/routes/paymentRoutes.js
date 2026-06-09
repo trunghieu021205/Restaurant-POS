@@ -4,7 +4,7 @@ const { processPayment, getPayments } = require('../controllers/paymentControlle
 const authMiddleware = require('../middleware/authMiddleware');
 const requiredRole = require('../middleware/roleMiddleware');
 
-router.post('/',authMiddleware, processPayment);
+router.post('/',authMiddleware, requiredRole(['user']), processPayment);
 router.get('/', authMiddleware, requiredRole(['admin']), getPayments);
 
 module.exports = router;

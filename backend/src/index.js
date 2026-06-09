@@ -43,6 +43,9 @@ app.use('/api/upload', uploadRoutes);
 const qrRoutes = require('./routes/qrRoutes');
 app.use('/api/qr', qrRoutes);
 
+const categoriesRoutes = require('./routes/categoriesRoutes');
+app.use('/api/categories', categoriesRoutes);
+
 app.get('/', (req, res) => res.send('API running'));
 
 const { initSocket } = require('./socket');

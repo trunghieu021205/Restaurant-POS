@@ -1,4 +1,5 @@
 const MenuItem = require('../models/MenuItem');
+const { getIO } = require('../socket');
 
 // GET /api/menu
 exports.getMenu = async (req, res) => {
