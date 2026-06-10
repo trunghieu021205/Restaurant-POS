@@ -1,92 +1,103 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useEffect, use, useState } from "react";
 import MenuGrid from "@/components/menu/MenuGrid";
 import MenuSkeleton from "@/components/menu/MenuSkeleton";
 import Cart from "@/components/cart/Cart";
-import type { CartItem } from "@/types";
 import useCartStore from "@/stores/cart";
 import useBillStore from "@/stores/bill";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "@/components/ErrorFallback";
 import { BillSheet } from "@/components/bill/BillSheet";
-
-const dummyMenu: CartItem[] = [
-  {
-    id: "1",
-    name: "Phở bò",
-    price: 50000,
-    quantity: 1,
-    image: "/menu/food/pho.jpg",
-    description: "Phở bò tái chín đậm đà",
-  },
-  {
-    id: "2",
-    name: "Bún chả",
-    price: 45000,
-    quantity: 1,
-    image: "/menu/food/buncha.jpg",
-    description: "Bún chả Hà Nội chính gốc",
-  },
-  {
-    id: "3",
-    name: "Cơm tấm",
-    price: 40000,
-    quantity: 1,
-    image: "/menu/food/comtam.jpg",
-    description: "Cơm tấm sườn bì chả",
-  },
-  {
-    id: "4",
-    name: "Gỏi cuốn",
-    price: 35000,
-    quantity: 1,
-    image: "/menu/food/goicuon.jpg",
-    description: "Gỏi cuốn tôm thịt tươi",
-  },
-  {
-    id: "5",
-    name: "Chả giò",
-    price: 30000,
-    quantity: 1,
-    image: "/menu/food/chagio.jpg",
-    description: "Chả giò rế giòn tan",
-  },
-  {
-    id: "6",
-    name: "Bánh mì",
-    price: 20000,
-    quantity: 1,
-    image: "/menu/food/banhmi.jpg",
-    description: "Bánh mì thịt nướng đặc biệt",
-  },
-];
+import { useTodayMenu } from "@/hooks/useTodayMenu";
+import { resolveTable, type ResolvedTable } from "@/services/table";
 
 type Params = Promise<{ id: string }>;
 
 export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
-  const [loading, setLoading] = useState(true);
-  const [menu] = useState<CartItem[]>(dummyMenu);
   const { isOpen: billOpen, closeBill, setTableId } = useBillStore();
+  const { fetchCart, collapseCart } = useCartStore();
   const isExpanded = useCartStore((state) => state.isExpanded);
 
-  useEffect(() => {
-    setTableId(id);
-    return () => setTableId(null);
-  }, [id, setTableId]);
+  const { menuItems, isLoading, isError, error, refetch } = useTodayMenu();
+
+  // tableOk: null = đang kiểm tra, false = không tồn tại
+  const [tableOk, setTableOk] = useState<boolean | null>(null);
+  const [table, setTable] = useState<ResolvedTable | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    let cancelled = false;
 
-  if (loading) return <MenuSkeleton />;
+    const run = async () => {
+      // 1) Validate table exists trước khi setTableId/fetchCart
+      let resolvedTable: ResolvedTable | null = null;
+      try {
+        resolvedTable = await resolveTable(id);
+      } catch (e) {
+        console.error("resolveTable failed:", e);
+        // nếu endpoint check lỗi/404 thì coi như bàn không hợp lệ
+        resolvedTable = null;
+      }
+
+      if (cancelled) return;
+
+      if (!resolvedTable) {
+        setTableOk(false);
+        setTable(null);
+        setTableId(null);
+        return;
+      }
+
+      setTableOk(true);
+      setTable(resolvedTable);
+
+      setTableId(resolvedTable.id);
+      fetchCart(resolvedTable.id);
+      collapseCart();
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+      setTableId(null);
+    };
+  }, [id, setTableId, fetchCart, collapseCart]);
+
+  if (isLoading || tableOk === null) return <MenuSkeleton />;
+
+  // Chặn UI khi table không hợp lệ
+  if (tableOk === false) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center px-4">
+        <p className="text-red-500 font-medium">Không có bàn này</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center px-4">
+        <p className="text-red-500 font-medium">
+          Không thể tải menu. Vui lòng thử lại.
+        </p>
+        <p className="text-sm text-neutral-400">
+          {error instanceof Error ? error.message : "Lỗi không xác định"}
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-primary text-white rounded-card text-sm hover:opacity-90 transition-opacity"
+        >
+          Thử lại
+        </button>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <div className="min-h-[70vh]">
-        {/* Padding phải nhường chỗ cho sidebar desktop */}
         <div
           className={`transition-all duration-300 ${
             isExpanded ? "lg:pr-75" : "lg:pr-16"
@@ -95,11 +106,21 @@ export default function TablePage({ params }: { params: Params }) {
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-neutral-800 mb-4 sm:mb-6">
             Bàn số {id}
           </h1>
-          <MenuGrid items={menu} />
+
+          {menuItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center min-h-[40vh] gap-2 text-neutral-400">
+              <p className="text-lg font-medium">Chưa có món hôm nay</p>
+              <p className="text-sm">
+                Vui lòng liên hệ nhân viên để được hỗ trợ.
+              </p>
+            </div>
+          ) : (
+            <MenuGrid items={menuItems} />
+          )}
         </div>
 
         <Cart />
-        <BillSheet tableId={id} open={billOpen} onClose={closeBill} />
+        <BillSheet tableId={table?.id ?? id} open={billOpen} onClose={closeBill} />
       </div>
     </ErrorBoundary>
   );

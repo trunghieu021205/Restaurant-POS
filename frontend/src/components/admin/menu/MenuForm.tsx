@@ -1,14 +1,14 @@
 // components/admin/menu/MenuForm.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { ImageUpload } from "./ImageUpload";
-import { MenuFormData, MenuItem } from "@/types/menu";
-import { MENU_CATEGORIES } from "@/services/menu";
+import { MenuFormData, MenuItem, Category } from "@/types/menu";
+import { fetchCategories } from "@/services/category";
 import { X, Save } from "lucide-react";
 
 interface MenuFormProps {
@@ -27,6 +27,8 @@ export function MenuForm({
   isLoading,
 }: MenuFormProps) {
   const isEditing = !!initialData;
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
 
   const {
     register,
@@ -41,7 +43,7 @@ export function MenuForm({
       price: 0,
       description: "",
       imageUrl: "",
-      category: "Món chính",
+      categoryId: "",
       isAvailable: true,
       isToday: false,
     },
@@ -50,13 +52,28 @@ export function MenuForm({
   const imageUrlValue = watch("imageUrl");
 
   useEffect(() => {
+    const loadCategories = async () => {
+      setCategoriesLoading(true);
+      try {
+        const data = await fetchCategories(true);
+        setCategories(data);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
     if (initialData) {
       reset({
         name: initialData.name,
         price: initialData.price,
         description: initialData.description,
         imageUrl: initialData.imageUrl,
-        category: initialData.category,
+        categoryId: initialData.categoryId,
         isAvailable: initialData.isAvailable,
         isToday: initialData.isToday,
       });
@@ -66,7 +83,7 @@ export function MenuForm({
         price: 0,
         description: "",
         imageUrl: "",
-        category: "Món chính",
+        categoryId: "",
         isAvailable: true,
         isToday: false,
       });
@@ -170,12 +187,14 @@ export function MenuForm({
                       Danh mục
                     </label>
                     <select
-                      {...register("category")}
+                      {...register("categoryId")}
                       className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-neutral-800"
+                      disabled={categoriesLoading}
                     >
-                      {MENU_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
+                      <option value="">Chọn danh mục</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
                         </option>
                       ))}
                     </select>

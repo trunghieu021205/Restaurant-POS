@@ -12,8 +12,8 @@ const { getMenu,
     setTodayMenu
  } = require('../controllers/menuController')
 
-router.get('/', authMiddleware, getMenu);
-router.get('/today', authMiddleware, getTodayMenu);
+router.get('/', getMenu);
+router.get('/today', getTodayMenu); // Khách hàng tại bàn không cần auth
 router.get('/:id', authMiddleware, getMenuItem);
 router.post('/', authMiddleware, requiredRole(['admin']), createMenuItem);
 router.put('/:id', authMiddleware, requiredRole(['admin']), updateMenuItem);

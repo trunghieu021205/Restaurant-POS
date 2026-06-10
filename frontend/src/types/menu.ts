@@ -19,7 +19,6 @@ export interface MenuFormData {
   categoryId?: string;
   description: string;
   imageUrl?: string;
-  category?: string;
   isAvailable: boolean;
   isToday: boolean;
 }
@@ -30,4 +29,15 @@ export interface MenuFilters {
   status: 'all' | 'available' | 'unavailable';
   page: number;
   limit: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  image?: string;
+  isActive: boolean;
+  orderIndex: number;
+  createdAt?: string;
+  updatedAt?: string;
 }

@@ -1,19 +1,20 @@
 const QRCode = require('qrcode');
 const Table = require('../models/Table');
 const Order = require('../models/Order');
+const { resolveTableByIdentifier } = require('../utils/resolveTable');
 
 // GET /api/qr/table/:tableId
 // Sinh QR chứa URL check-in cho 1 bàn cụ thể, trả về ảnh PNG
 exports.getTableQR = async (req, res) => {
   try {
-    const table = await Table.findById(req.params.tableId);
+    const table = await resolveTableByIdentifier(req.params.tableId);
     if (!table) {
       return res.status(404).json({ message: 'Bàn không tồn tại' });
     }
 
     // URL mà khách sẽ được chuyển tới khi quét QR
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const checkInUrl = `${frontendUrl}/table/${table._id}`;
+    const checkInUrl = `${frontendUrl}/table/${table.number}`;
 
     // Sinh QR dưới dạng Data URL (base64 image)
     const qrDataUrl = await QRCode.toDataURL(checkInUrl, {
@@ -26,7 +27,7 @@ exports.getTableQR = async (req, res) => {
     });
 
     res.json({
-      tableId: table._id,
+      tableId: table._id.toString(),
       tableNumber: table.number,
       checkInUrl: checkInUrl,
       qrCode: qrDataUrl // Chuỗi base64 của ảnh QR, FE dùng thẳng trong thẻ <img src="...">
@@ -46,13 +47,13 @@ exports.getAllTableQRs = async (req, res) => {
 
     const results = await Promise.all(
       tables.map(async (table) => {
-        const checkInUrl = `${frontendUrl}/table/${table._id}`;
+        const checkInUrl = `${frontendUrl}/table/${table.number}`;
         const qrDataUrl = await QRCode.toDataURL(checkInUrl, {
           width: 400,
           margin: 2
         });
         return {
-          tableId: table._id,
+          tableId: table._id.toString(),
           tableNumber: table.number,
           checkInUrl,
           qrCode: qrDataUrl

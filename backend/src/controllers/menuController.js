@@ -82,7 +82,8 @@ exports.createMenuItem = async (req, res) => {
   try {
     const data = req.body;
     const item = await MenuItem.create(data);
-    res.status(201).json(item);
+    const populatedItem = await MenuItem.findById(item._id).populate('categoryId');
+    res.status(201).json(populatedItem);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Failed to create menu item' });
@@ -92,7 +93,7 @@ exports.createMenuItem = async (req, res) => {
 // PUT /api/menu/:id (admin)
 exports.updateMenuItem = async (req, res) => {
   try {
-    const item = await MenuItem.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const item = await MenuItem.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('categoryId');
     if (!item) return res.status(404).json({ message: 'Menu item not found' });
     res.json(item);
   } catch (err) {

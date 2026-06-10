@@ -25,14 +25,25 @@ async function seed() {
   ]);
   console.log('🪑 Đã tạo 4 bàn');
 
+  // ---------- Tạo Danh mục ----------
+  const categories = await Categories.insertMany([
+    { name: 'Món chính', description: 'Các món ăn chính', isActive: true, orderIndex: 1 },
+    { name: 'Khai vị', description: 'Các món khai vị', isActive: true, orderIndex: 2 },
+    { name: 'Tráng miệng', description: 'Các món tráng miệng', isActive: true, orderIndex: 3 },
+    { name: 'Đồ uống', description: 'Các loại đồ uống', isActive: true, orderIndex: 4 },
+  ]);
+  console.log('📂 Đã tạo 4 danh mục');
+
+  const mainCategoryId = categories[0]._id.toString();
+
   // ---------- Tạo 6 Món ----------
   await MenuItem.insertMany([
-    { name: 'Phở bò',  price: 50000, description: 'Phở bò tái chín đậm đà', categoryId: '6a2824e3744ad675659cdd8a', imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979491/pho_wwtiyi.jpg', isAvailable: true, isToday: true },
-    { name: 'Bún chả', price: 45000, description: 'Bún chả Hà Nội chính gốc', categoryId: '6a2824e3744ad675659cdd8a', imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979490/buncha_egivnw.jpg', isAvailable: true, isToday: true },
-    { name: 'Cơm tấm', price: 40000, description: 'Cơm tấm sườn bì chả', categoryId: '6a2824e3744ad675659cdd8a', imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979491/comtam_npbodk.jpg', isAvailable: true, isToday: true },
-    { name: 'Gỏi cuốn', price: 35000, description: 'Gỏi cuốn tôm thịt tươi', categoryId: '6a2824e3744ad675659cdd8a', imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979491/goicuon_bi8lob.jpg', isAvailable: true, isToday: false },
-    { name: 'Chả giò', price: 30000, description: 'Chả giò rế giòn tan', categoryId: '6a2824e3744ad675659cdd8a', imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979490/chagio_qatong.jpg', isAvailable: true, isToday: true },
-    { name: 'Bánh mì', price: 20000, description: 'Bánh mì thịt nướng đặc biệt', categoryId: '6a2824e3744ad675659cdd8a', imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979491/banhmi_yjurbv.jpg', isAvailable: true, isToday: true },
+    { name: 'Phở bò',  price: 50000, description: 'Phở bò tái chín đậm đà', categoryId: mainCategoryId, imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979491/pho_wwtiyi.jpg', isAvailable: true, isToday: true },
+    { name: 'Bún chả', price: 45000, description: 'Bún chả Hà Nội chính gốc', categoryId: mainCategoryId, imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979490/buncha_egivnw.jpg', isAvailable: true, isToday: true },
+    { name: 'Cơm tấm', price: 40000, description: 'Cơm tấm sườn bì chả', categoryId: mainCategoryId, imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979491/comtam_npbodk.jpg', isAvailable: true, isToday: true },
+    { name: 'Gỏi cuốn', price: 35000, description: 'Gỏi cuốn tôm thịt tươi', categoryId: mainCategoryId, imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979491/goicuon_bi8lob.jpg', isAvailable: true, isToday: false },
+    { name: 'Chả giò', price: 30000, description: 'Chả giò rế giòn tan', categoryId: mainCategoryId, imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979490/chagio_qatong.jpg', isAvailable: true, isToday: true },
+    { name: 'Bánh mì', price: 20000, description: 'Bánh mì thịt nướng đặc biệt', categoryId: mainCategoryId, imageUrl: 'https://res.cloudinary.com/dwdpfc9rq/image/upload/v1780979491/banhmi_yjurbv.jpg', isAvailable: true, isToday: true },
   ]);
   console.log('🍜 Đã tạo 6 món ăn');
 

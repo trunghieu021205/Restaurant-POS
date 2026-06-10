@@ -5,6 +5,7 @@ import useCartStore from "@/stores/cart";
 import useBillStore from "@/stores/bill";
 import { formatCurrency } from "@/lib/utils";
 import type { CartItem } from "@/types/cart";
+import { useDebouncedCallback } from "use-debounce";
 
 // ── Item riêng biệt để isolate state ────────────────────────────
 function CartItemRow({
@@ -19,6 +20,10 @@ function CartItemRow({
   // State note nằm trong component con → không ảnh hưởng item khác
   const [note, setNote] = useState(item.note ?? "");
   const menuItem = item.menuItem;
+  const debouncedNoteChange = useDebouncedCallback(
+    (value: string) => onNoteChange(item.menuItemId, value),
+    2000, // 500ms sau khi ngừng gõ mới gọi API
+  );
 
   return (
     <div className="bg-neutral-50 rounded-xl px-3 py-2.5 space-y-2">
@@ -26,7 +31,7 @@ function CartItemRow({
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-neutral-800 leading-tight truncate">
-            {menuItem?.name || 'Unknown item'}
+            {menuItem?.name || "Unknown item"}
           </p>
           <p className="text-xs text-neutral-500 mt-0.5">
             {item.quantity} × {formatCurrency(menuItem?.price || 0)}
@@ -51,10 +56,10 @@ function CartItemRow({
         value={note}
         onChange={(e) => {
           setNote(e.target.value);
-          onNoteChange(item.menuItemId, e.target.value);
+          debouncedNoteChange(e.target.value);
         }}
         placeholder="Ghi chú: ít cay, không hành, thêm đá..."
-        maxLength={120}
+        // maxLength={120}
         rows={2}
         className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200
           focus:border-primary-400 focus:ring-2 focus:ring-primary-400/20
@@ -108,7 +113,7 @@ export default function Cart() {
   }, [mobileOpen]);
 
   // ── Nội dung giỏ hàng (dùng chung mobile + desktop) ─────────────
-  const CartContent = () => (
+  const renderCartContent = () => (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Header */}
       <div className="flex justify-between flex-nowrap items-center px-4 pt-4 pb-3 border-b border-neutral-100">
@@ -143,7 +148,11 @@ export default function Cart() {
           >
             {items.map((item) => (
               <CartItemRow
-                key={item.menuItemId}
+                key={
+                  typeof item.menuItemId === "string"
+                    ? item.menuItemId
+                    : item.menuItemId?.id
+                }
                 item={item}
                 onRemove={removeItem}
                 onNoteChange={updateNote}
@@ -215,7 +224,7 @@ export default function Cart() {
           <div className="w-10 h-1 rounded-full bg-neutral-200" />
         </div>
         <div className="flex-1 min-h-0 flex flex-col">
-          <CartContent />
+          {renderCartContent()}
         </div>
       </div>
 
@@ -251,7 +260,7 @@ export default function Cart() {
             isExpanded ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
         >
-          <CartContent />
+          {renderCartContent()}
         </div>
       </div>
     </>

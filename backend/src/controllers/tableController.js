@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Table = require('../models/Table');
 const Payments = require('../models/Payments');
+const { resolveTableByIdentifier } = require('../utils/resolveTable');
 
 const VAT_RATE = 0.08; // VAT 8% khớp với Frontend
 
@@ -8,15 +9,20 @@ const VAT_RATE = 0.08; // VAT 8% khớp với Frontend
 exports.getTableBill = async (req, res) => {
     try {
         const { tableId } = req.params;
+        const table = await resolveTableByIdentifier(tableId);
+        if (!table) {
+            return res.status(404).json({ message: 'Khong co ban nay' });
+        }
+        const resolvedTableId = table._id;
         
         // Gom tất cả order CHƯA thanh toán (pending, cooking, done) của bàn này
         const activeOrders = await Order.find({
-            tableId,
+            tableId: resolvedTableId,
             status: { $in: ['pending', 'cooking', 'done'] }
         }).populate('items.menuItemId', 'name');
 
         if (activeOrders.length === 0) {
-            return res.json({ tableId, items: [], subtotal: 0, vatAmount: 0, totalAmount: 0 });
+            return res.json({ tableId: table._id.toString(), tableNumber: table.number, items: [], subtotal: 0, vatAmount: 0, totalAmount: 0 });
         }
 
         let allItems = [];
@@ -38,7 +44,8 @@ exports.getTableBill = async (req, res) => {
         const totalAmount = subtotal + vatAmount;
 
         res.json({
-            tableId,
+            tableId: table._id.toString(),
+            tableNumber: table.number,
             items: allItems,
             subtotal,
             vatAmount,
@@ -50,14 +57,38 @@ exports.getTableBill = async (req, res) => {
     }
 };
 
+// GET /api/tables/:tableId/exists
+exports.tableExists = async (req, res) => {
+    try {
+        const { tableId } = req.params;
+        const table = await resolveTableByIdentifier(tableId);
+        return res.json({
+            exists: !!table,
+            table: table ? {
+                id: table._id.toString(),
+                number: table.number,
+                capacity: table.capacity,
+                status: table.status
+            } : null
+        });
+    } catch (error) {
+        console.error('Error checking table exists:', error);
+        return res.status(500).json({ message: 'Lỗi khi kiểm tra bàn' });
+    }
+};
+
 // POST /api/tables/:tableId/checkout
 exports.checkoutTable = async (req, res) => {
     try {
         const { tableId } = req.params;
         const { paymentMethod = 'cash' } = req.body;
+        const table = await resolveTableByIdentifier(tableId);
+        if (!table) {
+            return res.status(404).json({ message: 'Khong co ban nay' });
+        }
 
         const activeOrders = await Order.find({
-            tableId,
+            tableId: table._id,
             status: { $in: ['pending', 'cooking', 'done'] }
         });
 
@@ -84,14 +115,14 @@ exports.checkoutTable = async (req, res) => {
         // Lưu thông tin thanh toán vào collection Payments
         await Payments.create({
             orderIds: orderIds,
-            tableId: tableId,
+            tableId: table._id,
             amount: tableTotalAmountWithVat,
             method: paymentMethod || 'cash',
             paidBy: req.user?.id
         });
 
         // Chuyển bàn thành trống (available)
-        await Table.findByIdAndUpdate(tableId, { status: 'available' });
+        await Table.findByIdAndUpdate(table._id, { status: 'available' });
 
         res.json({ success: true, message: 'Thanh toán thành công toàn bộ bàn' });
     } catch (error) {

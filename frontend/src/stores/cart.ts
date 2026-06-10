@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CartItem, Cart } from '@/types/cart';
-import { getCart, addToCart, removeFromCart, clearCart } from '@/services/cart';
+import { getCart, addToCart, removeFromCart, clearCart, updateCartItemNote } from '@/services/cart';
 
 interface CartState {
     tableId: string | null;
@@ -32,6 +32,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
       const cart = await getCart(tableId);
       set({ tableId, items: cart.items, isLoading: false });
     } catch (error) {
+      console.error('Failed to fetch cart:', error);
       set({ error: 'Failed to fetch cart', isLoading: false });
     }
   },
@@ -48,6 +49,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
       const cart = await addToCart(tableId, menuItemId, quantity, note);
       set({ items: cart.items, isLoading: false });
     } catch (error) {
+      console.error('Failed to add item to cart:', error);
       set({ error: 'Failed to add item to cart', isLoading: false });
     }
   },
@@ -64,30 +66,32 @@ export const useCartStore = create<CartState>()((set, get) => ({
       const cart = await removeFromCart(tableId, menuItemId);
       set({ items: cart.items, isLoading: false });
     } catch (error) {
+      console.error('Failed to remove item from cart:', error);
       set({ error: 'Failed to remove item from cart', isLoading: false });
     }
   },
 
   updateNote: async (menuItemId: string, note: string) => {
     const { tableId, items } = get();
-    if (!tableId) {
-      set({ error: 'No table selected' });
-      return;
-    }
+    if (!tableId) return;
 
-    // Optimistic update
-    set({ items: items.map((i) =>
-      i.menuItemId === menuItemId ? { ...i, note } : i
-    ) });
+    // Optimistic update — chỉ update local state
+    set({
+      items: items.map((i) =>
+        i.menuItemId === menuItemId ? { ...i, note } : i
+      ),
+    });
 
     try {
-      const cart = await addToCart(tableId, menuItemId, 1, note);
+      const cart = await updateCartItemNote(tableId, menuItemId, note);
       set({ items: cart.items });
     } catch (error) {
-      set({ error: 'Failed to update note' });
+      console.error('Failed to update note:', error);
+      // Rollback về state cũ nếu lỗi
+      set({ items });
     }
   },
-
+  
   clearCart: async () => {
     const { tableId } = get();
     if (!tableId) {
@@ -100,6 +104,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
       await clearCart(tableId);
       set({ items: [], isLoading: false });
     } catch (error) {
+      console.error('Failed to clear cart:', error);
       set({ error: 'Failed to clear cart', isLoading: false });
     }
   },

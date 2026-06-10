@@ -43,6 +43,9 @@ app.use('/api/upload', uploadRoutes);
 const qrRoutes = require('./routes/qrRoutes');
 app.use('/api/qr', qrRoutes);
 
+const tableRoutes = require('./routes/tableRoutes');
+app.use('/api/tables', tableRoutes);
+
 const categoriesRoutes = require('./routes/categoriesRoutes');
 app.use('/api/categories', categoriesRoutes);
 

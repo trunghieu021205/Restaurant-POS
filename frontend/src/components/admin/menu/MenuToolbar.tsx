@@ -1,10 +1,11 @@
 // components/admin/menu/MenuToolbar.tsx
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Search, Plus, Filter } from "lucide-react";
-import { MenuFilters } from "@/types/menu";
-import { MENU_CATEGORIES } from "@/services/menu";
+import { MenuFilters, Category } from "@/types/menu";
+import { fetchCategories } from "@/services/category";
 
 interface MenuToolbarProps {
   filters: MenuFilters;
@@ -23,6 +24,19 @@ export function MenuToolbar({
   onAddNew,
   total,
 }: MenuToolbarProps) {
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await fetchCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+      }
+    };
+    loadCategories();
+  }, []);
   return (
     <div className="bg-white rounded-2xl shadow-card border border-neutral-100 p-4 space-y-4">
       {/* Top row: search + add button */}
@@ -56,9 +70,9 @@ export function MenuToolbar({
           className="px-3 py-1.5 rounded-lg border border-neutral-200 text-sm text-neutral-700 bg-white focus:border-primary-500 outline-none"
         >
           <option value="all">Tất cả danh mục</option>
-          {MENU_CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
             </option>
           ))}
         </select>

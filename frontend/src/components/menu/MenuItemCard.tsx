@@ -47,7 +47,7 @@ export default function MenuItemCard({ item }: { item: MenuItem }) {
         </div>
 
         {/* Giá + số lượng */}
-        <div className="flex flex-col xs:flex-row gap-2 items-center xs:justify-between">
+        <div className="flex flex-col sm:flex-row! gap-2 items-center xs:justify-between">
           <span className="text-primary-600 font-bold text-sm sm:text-base">
             {formatCurrency(item.price)}
           </span>

@@ -1,7 +1,7 @@
 const { randomUUID } = require('crypto');
 const Order = require('../models/Order');
-const Table = require('../models/Table');
 const MenuItem = require('../models/MenuItem');
+const { resolveTableByIdentifier } = require('../utils/resolveTable');
 require('../models/User');
 const { getIO } = require('../socket');
 
@@ -13,7 +13,7 @@ exports.createOrder = async (req, res) => {
             return res.status(400).json({ message: 'Missing tableId' });
         }
 
-        const table = await Table.findById(tableId);
+        const table = await resolveTableByIdentifier(tableId);
         if (!table) {
             return res.status(404).json({ message: 'Table not found' });
         }
@@ -52,7 +52,7 @@ exports.createOrder = async (req, res) => {
 
         const order = await Order.create({
             orderNumber: `ORD-${randomUUID()}`,
-            tableId: tableId,
+            tableId: table._id,
             user: req.user?.id,
             items: orderItems,
             status: 'pending',
