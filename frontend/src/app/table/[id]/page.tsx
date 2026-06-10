@@ -11,6 +11,9 @@ import ErrorFallback from "@/components/ErrorFallback";
 import { BillSheet } from "@/components/bill/BillSheet";
 import { useTodayMenu } from "@/hooks/useTodayMenu";
 import { resolveTable, type ResolvedTable } from "@/services/table";
+import { fetchCategories } from "@/services/category";
+import type { Category } from "@/types/menu";
+import MenuCategoryFilter from "./MenuCategoryFilter";
 
 type Params = Promise<{ id: string }>;
 
@@ -21,6 +24,31 @@ export default function TablePage({ params }: { params: Params }) {
   const isExpanded = useCartStore((state) => state.isExpanded);
 
   const { menuItems, isLoading, isError, error, refetch } = useTodayMenu();
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [filteredItems, setFilteredItems] = useState(menuItems);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await fetchCategories();
+        if (!cancelled) setCategories(res);
+      } catch (e) {
+        console.error("fetchCategories failed:", e);
+        if (!cancelled) setCategories([]);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    // nếu chưa filter kịp thì giữ menuItems
+    setFilteredItems(menuItems);
+  }, [menuItems]);
 
   // tableOk: null = đang kiểm tra, false = không tồn tại
   const [tableOk, setTableOk] = useState<boolean | null>(null);
@@ -115,12 +143,24 @@ export default function TablePage({ params }: { params: Params }) {
               </p>
             </div>
           ) : (
-            <MenuGrid items={menuItems} />
+            <>
+              <MenuCategoryFilter
+                categories={categories}
+                items={menuItems}
+                defaultCategoryName="Món chính"
+                onFiltered={(filtered) => setFilteredItems(filtered)}
+              />
+              <MenuGrid items={filteredItems} />
+            </>
           )}
         </div>
 
         <Cart />
-        <BillSheet tableId={table?.id ?? id} open={billOpen} onClose={closeBill} />
+        <BillSheet
+          tableId={table?.id ?? id}
+          open={billOpen}
+          onClose={closeBill}
+        />
       </div>
     </ErrorBoundary>
   );
