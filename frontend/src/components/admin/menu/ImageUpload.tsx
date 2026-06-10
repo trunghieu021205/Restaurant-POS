@@ -8,7 +8,7 @@ import { Upload, X } from "lucide-react";
 
 interface ImageUploadProps {
   value: string;
-  onChange: (url: string) => void;
+  onChange: (url: string, file?: File) => void;
 }
 
 export function ImageUpload({ value, onChange }: ImageUploadProps) {
@@ -27,7 +27,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
     setIsUploading(true);
     try {
       const url = await uploadMenuImage(file);
-      onChange(url);
+      onChange(url, file);
     } catch {
       alert("Upload ảnh thất bại");
     } finally {

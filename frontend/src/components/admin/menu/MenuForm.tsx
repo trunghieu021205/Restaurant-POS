@@ -1,7 +1,7 @@
 // components/admin/menu/MenuForm.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
@@ -11,10 +11,15 @@ import { MenuFormData, MenuItem } from "@/types/menu";
 import { Category } from "@/services/adminCategories";
 import { X, Save } from "lucide-react";
 
+// ĐỊNH NGHĨA KIỂU DỮ LIỆU MỞ RỘNG CHO PAYLOAD CHỨA FILE ẢNH GỐC
+interface ExtendedMenuFormData extends MenuFormData {
+  imageFile?: File;
+}
+
 interface MenuFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: MenuFormData) => Promise<void>;
+  onSubmit: (data: ExtendedMenuFormData) => Promise<void>; // ✅ Đã cập nhật kiểu dữ liệu ở đây
   initialData?: MenuItem | null;
   isLoading?: boolean;
   categories: Category[];
@@ -29,6 +34,7 @@ export function MenuForm({
   categories,
 }: MenuFormProps) {
   const isEditing = !!initialData;
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const {
     register,
@@ -70,12 +76,20 @@ export function MenuForm({
         status: "available",
       });
     }
+    setImageFile(null); // Clear state khi mở lại / reset
   }, [initialData, reset, open]);
 
   const handleFormSubmit = async (data: MenuFormData) => {
-    await onSubmit(data);
+    // ✅ ÉP KIỂU VÀ ĐÍNH KÈM CHẮC CHẮN FILE GỐC VÀO PAYLOAD GỬI ĐI
+    const submitData: ExtendedMenuFormData = { 
+      ...data,
+      imageFile: imageFile || undefined
+    };
+    
+    await onSubmit(submitData);
     onOpenChange(false);
     reset();
+    setImageFile(null); // Clear state khi submit xong
   };
 
   return (
@@ -162,7 +176,7 @@ export function MenuForm({
                   />
                 </div>
 
-                {/* Danh mục & Trạng thái - có thể xếp 2 cột trên màn hình lớn */}
+                {/* Danh mục & Trạng thái */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
@@ -215,9 +229,12 @@ export function MenuForm({
                 {/* Upload ảnh */}
                 <ImageUpload
                   value={imageValue || ""}
-                  onChange={(url) =>
-                    setValue("image", url, { shouldDirty: true })
-                  }
+                  onChange={(url, file) => {
+                    setValue("image", url, { shouldDirty: true });
+                    if (file) {
+                      setImageFile(file);
+                    }
+                  }}
                 />
               </div>
             </form>

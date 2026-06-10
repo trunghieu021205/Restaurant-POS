@@ -62,7 +62,13 @@ export const adminMenuService = {
             if (targetData && Array.isArray(targetData.items)) {
                 targetData.items = targetData.items.map((item: any) => {
                     // 1. Đồng bộ Ảnh: Nếu BE trả về imageUrl, gán nó vào trường image để FE hiển thị được
-                    const cleanImage = item.image || item.imageUrl || '';
+                    let cleanImage = item.image || item.imageUrl || '';
+                    
+                    // Nếu đường dẫn là tương đối cục bộ (ví dụ: uploads/abc.png), tự nối thêm domain backend
+                    if (cleanImage && !cleanImage.startsWith('http') && !cleanImage.startsWith('data:') && !cleanImage.startsWith('blob:')) {
+                        const domain = API_URL.replace(/\/api$/, '');
+                        cleanImage = `${domain}/${cleanImage.replace(/^\/+/, '')}`;
+                    }
                     
                     // 2. Đồng bộ Trạng thái: Phòng trường hợp BE lưu kiểu Boolean thay vì String enum
                     let cleanStatus = item.status;
@@ -87,14 +93,52 @@ export const adminMenuService = {
         }
     },
 
-    create: async (data: MenuFormData): Promise<MenuItem> => {
-        // 🌟 BỘ CHUYỂN ĐỔI (MAPPER) TRƯỚC KHI GỬI LÊN BE:
-        // Đóng gói payload bao gồm cả 2 phương án đặt tên biến để BE dùng kiểu nào cũng trúng
+    create: async (data: MenuFormData & { imageFile?: File }): Promise<MenuItem> => {
+        let finalImageUrl = data.image;
+
+        // 🌟 BỘ TỰ ĐỘNG UPLOAD FILE: Nếu phát hiện có file ảnh binary đính kèm từ Form
+        if (data.imageFile) {
+            try {
+                const formData = new FormData();
+                formData.append('image', data.imageFile); 
+
+                const cleanBase = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
+                const uploadRes = await fetch(`${cleanBase}/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${useAuthStore.getState().token}`
+                    },
+                    body: formData
+                });
+
+                if (!uploadRes.ok) {
+                    const errText = await uploadRes.text();
+                    // 🚨 CHẶN LẠI: Ném lỗi trực tiếp ra ngoài nếu upload thất bại
+                    throw new Error(`Server từ chối file ảnh: ${errText}`);
+                }
+
+                const uploadData = await uploadRes.json();
+                const serverUrl = uploadData.url || uploadData.imageUrl || uploadData.path || uploadData.secure_url;
+                
+                if (!serverUrl) {
+                    throw new Error(`Upload thành công nhưng không tìm thấy trường URL trong phản hồi của Backend.`);
+                }
+
+                finalImageUrl = serverUrl;
+                console.log("📸 [DEBUG] Upload ảnh mới thành công. URL vĩnh viễn:", finalImageUrl);
+            } catch (uploadErr: any) {
+                console.error("🚨 Lỗi trong tiến trình upload file ảnh:", uploadErr);
+                // Ngăn chặn tạo món ăn bằng link blob tạm thời
+                throw new Error(uploadErr.message || "Tiến trình tải ảnh lên máy chủ thất bại, dừng tạo món ăn.");
+            }
+        }
+
         const payload = {
             ...data,
-            imageUrl: data.image, // Truyền thêm imageUrl bằng giá trị của image
-            isAvailable: data.status === 'available', // Đề phòng BE dùng Boolean
-            status: data.status // Giữ nguyên String enum nếu BE dùng loại này
+            image: finalImageUrl,
+            imageUrl: finalImageUrl, 
+            isAvailable: data.status === 'available', 
+            status: data.status 
         };
 
         const res = await fetch(getBaseMenuUrl(), {
@@ -109,11 +153,48 @@ export const adminMenuService = {
         return res.json();
     },
 
-    update: async (id: string, data: MenuFormData): Promise<MenuItem> => {
-        // 🌟 BỘ CHUYỂN ĐỔI (MAPPER) TRƯỚC KHI UPDATE LÊN BE:
+    update: async (id: string, data: MenuFormData & { imageFile?: File }): Promise<MenuItem> => {
+        let finalImageUrl = data.image;
+
+        // 🌟 BỘ TỰ ĐỘNG UPLOAD FILE KHI CẬP NHẬT:
+        if (data.imageFile) {
+            try {
+                const formData = new FormData();
+                formData.append('image', data.imageFile);
+
+                const cleanBase = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
+                const uploadRes = await fetch(`${cleanBase}/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${useAuthStore.getState().token}`
+                    },
+                    body: formData
+                });
+
+                if (!uploadRes.ok) {
+                    const errText = await uploadRes.text();
+                    throw new Error(`Server từ chối file ảnh khi cập nhật: ${errText}`);
+                }
+
+                const uploadData = await uploadRes.json();
+                const serverUrl = uploadData.url || uploadData.imageUrl || uploadData.path || uploadData.secure_url;
+                
+                if (!serverUrl) {
+                    throw new Error(`Không tìm thấy URL ảnh trong JSON trả về từ Server.`);
+                }
+
+                finalImageUrl = serverUrl;
+                console.log("📸 [DEBUG] Cập nhật ảnh thành công. URL mới vĩnh viễn:", finalImageUrl);
+            } catch (uploadErr: any) {
+                console.error("🚨 Lỗi trong tiến trình cập nhật file ảnh:", uploadErr);
+                throw new Error(uploadErr.message || "Lỗi cập nhật hình ảnh.");
+            }
+        }
+
         const payload = {
             ...data,
-            imageUrl: data.image,
+            image: finalImageUrl,
+            imageUrl: finalImageUrl,
             isAvailable: data.status === 'available',
             status: data.status
         };

@@ -8,7 +8,6 @@ import { MenuToolbar } from "@/components/admin/menu/MenuToolbar";
 import { Pagination } from "@/components/admin/menu/Pagination";
 import Skeleton from "@/components/ui/Skeleton";
 import { MenuItem, MenuFormData, MenuFilters } from "@/types/menu";
-import { useAuthStore } from "@/stores/auth"; // Dùng nếu có export dạng này, hoặc dùng getHeaders trong service
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { AlertCircle, UtensilsCrossed } from "lucide-react";
@@ -21,13 +20,13 @@ export default function AdminMenuPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
 
-  const [filters, setFilters] = useState<MenuFilters>({
+  const [filters, setFilters] = useState<MenuFilters>(({
     search: "",
     category: "all",
     status: "all",
     page: 1,
     limit: 8,
-  });
+  }));
 
   const [menuData, setMenuData] = useState<PaginatedMenuResponse | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -80,14 +79,12 @@ export default function AdminMenuPage() {
     }
   }, [fetchMenu, authLoading, user]);
 
-  // 1. Logic chuyển hướng an toàn trong useEffect
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
       router.push("/");
     }
   }, [authLoading, user, router]);
 
-  // 2. Chặn render giao diện admin nếu đang load hoặc không đủ quyền
   if (authLoading || !user || user.role !== "admin") {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
@@ -111,10 +108,9 @@ export default function AdminMenuPage() {
     setDeleteOpen(true);
   };
 
-  const handleFormSubmit = async (data: MenuFormData) => {
+  // ✅ ĐÃ CẬP NHẬT ĐỂ ĐÓN NHẬN TRƯỜNG IMAGEFILE TỪ MENUFORM TRUYỀN RA
+  const handleFormSubmit = async (data: MenuFormData & { imageFile?: File }) => {
     try {
-      // Find categoryId from category name if needed, or if data.categoryId is used
-      // For creating MenuItem, our model needs categoryId
       const selectedCat = categories.find(c => c.name === data.category);
       if (selectedCat) {
         data.categoryId = selectedCat.id;
@@ -126,11 +122,11 @@ export default function AdminMenuPage() {
         toast.success("Cập nhật món ăn thành công!");
       } else {
         setIsCreating(true);
-        await adminMenuService.create(data);
+        await adminMenuService.create(data); // ✅ Dữ liệu truyền đi giờ đã giữ nguyên vẹn file gốc
         toast.success("Thêm món ăn thành công!");
       }
       setFormOpen(false);
-      fetchMenu(); // Refresh data
+      fetchMenu();
     } catch (error: any) {
       toast.error(error.message || "Đã xảy ra lỗi khi lưu món ăn");
     } finally {
@@ -147,7 +143,7 @@ export default function AdminMenuPage() {
       toast.success("Xóa món ăn thành công!");
       setDeleteOpen(false);
       setDeletingItem(null);
-      fetchMenu(); // Refresh data
+      fetchMenu();
     } catch (error: any) {
       toast.error(error.message || "Đã xảy ra lỗi khi xóa món ăn");
     } finally {
@@ -164,12 +160,8 @@ export default function AdminMenuPage() {
             <UtensilsCrossed className="w-5 h-5 text-primary-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-neutral-800">
-              Quản lý thực đơn
-            </h1>
-            <p className="text-sm text-neutral-500">
-              Thêm, sửa, xóa món ăn trong thực đơn
-            </p>
+            <h1 className="text-2xl font-bold text-neutral-800">Quản lý thực đơn</h1>
+            <p className="text-sm text-neutral-500">Thêm, sửa, xóa món ăn trong thực đơn</p>
           </div>
         </div>
 
@@ -180,7 +172,6 @@ export default function AdminMenuPage() {
           onStatusChange={(status: any) => setFilters(prev => ({ ...prev, status, page: 1 }))}
           onAddNew={handleAddNew}
           total={menuData?.total}
-          // Truyền categories vào MenuToolbar nếu MenuToolbar có support, nếu không thì thôi (toolbar đang tĩnh)
         />
 
         <div className="mt-6">
@@ -194,17 +185,13 @@ export default function AdminMenuPage() {
             <div className="bg-white rounded-2xl p-8 text-center border border-error-200 shadow-card">
               <AlertCircle className="w-12 h-12 text-error-400 mx-auto mb-3" />
               <p className="text-error-600 font-medium">Lỗi tải dữ liệu</p>
-              <p className="text-sm text-neutral-500 mt-1">
-                Vui lòng thử lại sau
-              </p>
+              <p className="text-sm text-neutral-500 mt-1">Vui lòng thử lại sau</p>
             </div>
           ) : !menuData || menuData.items.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border border-neutral-100 shadow-card">
               <div className="text-6xl mb-4">🍽️</div>
               <p className="text-neutral-500 text-lg">Chưa có món ăn nào</p>
-              <p className="text-sm text-neutral-400 mt-1">
-                Nhấn "Thêm món mới" để bắt đầu
-              </p>
+              <p className="text-sm text-neutral-400 mt-1">Nhấn "Thêm món mới" để bắt đầu</p>
             </div>
           ) : (
             <>
