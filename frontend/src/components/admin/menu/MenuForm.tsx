@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { ImageUpload } from "./ImageUpload";
 import { MenuFormData, MenuItem } from "@/types/menu";
-import { MENU_CATEGORIES } from "@/services/menu";
+import { Category } from "@/services/adminCategories";
 import { X, Save } from "lucide-react";
 
 interface MenuFormProps {
@@ -17,6 +17,7 @@ interface MenuFormProps {
   onSubmit: (data: MenuFormData) => Promise<void>;
   initialData?: MenuItem | null;
   isLoading?: boolean;
+  categories: Category[];
 }
 
 export function MenuForm({
@@ -25,6 +26,7 @@ export function MenuForm({
   onSubmit,
   initialData,
   isLoading,
+  categories,
 }: MenuFormProps) {
   const isEditing = !!initialData;
 
@@ -170,9 +172,10 @@ export function MenuForm({
                       {...register("category")}
                       className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-neutral-800"
                     >
-                      {MENU_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
+                      <option value="">Chọn danh mục</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name}
                         </option>
                       ))}
                     </select>

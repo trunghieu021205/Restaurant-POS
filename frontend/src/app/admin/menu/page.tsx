@@ -1,51 +1,94 @@
-// app/admin/menu/page.tsx
 "use client";
 
-import { useState } from "react";
-import { useMenu } from "@/hooks/useMenu";
+import { useState, useEffect, useCallback } from "react";
 import { MenuCard } from "@/components/admin/menu/MenuCard";
 import { MenuForm } from "@/components/admin/menu/MenuForm";
 import { DeleteConfirmDialog } from "@/components/admin/menu/DeleteConfirmDialog";
 import { MenuToolbar } from "@/components/admin/menu/MenuToolbar";
 import { Pagination } from "@/components/admin/menu/Pagination";
 import Skeleton from "@/components/ui/Skeleton";
-import { MenuItem, MenuFormData } from "@/types/menu";
+import { MenuItem, MenuFormData, MenuFilters } from "@/types/menu";
+import { useAuthStore } from "@/stores/auth"; // Dùng nếu có export dạng này, hoặc dùng getHeaders trong service
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { AlertCircle, UtensilsCrossed } from "lucide-react";
+import { toast } from "@/lib/toast";
+
+import { adminMenuService, PaginatedMenuResponse } from "@/services/adminMenu";
+import { adminCategoriesService, Category } from "@/services/adminCategories";
 
 export default function AdminMenuPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
 
-  const {
-    filters,
-    setSearch,
-    setCategory,
-    setStatus,
-    setPage,
-    menuData,
-    isLoading,
-    isError,
-    createItem,
-    updateItem,
-    deleteItem,
-    isCreating,
-    isUpdating,
-    isDeleting,
-  } = useMenu({ limit: 8 });
+  const [filters, setFilters] = useState<MenuFilters>({
+    search: "",
+    category: "all",
+    status: "all",
+    page: 1,
+    limit: 8,
+  });
+
+  const [menuData, setMenuData] = useState<PaginatedMenuResponse | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<MenuItem | null>(null);
 
-  if (!authLoading && (!user || user.role !== "admin")) {
-    router.push("/");
-    return null;
-  }
+  const fetchCategories = async () => {
+    try {
+      const data = await adminCategoriesService.getAll();
+      setCategories(data);
+    } catch (error) {
+      console.error("Lỗi lấy danh mục:", error);
+      toast.error("Không thể tải danh sách danh mục");
+    }
+  };
 
-  if (authLoading) {
+  const fetchMenu = useCallback(async () => {
+    setIsLoading(true);
+    setIsError(false);
+    try {
+      const data = await adminMenuService.getAll(filters);
+      setMenuData(data);
+    } catch (error) {
+      console.error("Lỗi lấy thực đơn:", error);
+      setIsError(true);
+      toast.error("Không thể tải danh sách món ăn");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    if (!authLoading && user?.role === "admin") {
+      fetchCategories();
+    }
+  }, [authLoading, user]);
+
+  useEffect(() => {
+    if (!authLoading && user?.role === "admin") {
+      fetchMenu();
+    }
+  }, [fetchMenu, authLoading, user]);
+
+  // 1. Logic chuyển hướng an toàn trong useEffect
+  useEffect(() => {
+    if (!authLoading && (!user || user.role !== "admin")) {
+      router.push("/");
+    }
+  }, [authLoading, user, router]);
+
+  // 2. Chặn render giao diện admin nếu đang load hoặc không đủ quyền
+  if (authLoading || !user || user.role !== "admin") {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
@@ -69,18 +112,47 @@ export default function AdminMenuPage() {
   };
 
   const handleFormSubmit = async (data: MenuFormData) => {
-    if (editingItem) {
-      await updateItem({ id: editingItem.id, data });
-    } else {
-      await createItem(data);
+    try {
+      // Find categoryId from category name if needed, or if data.categoryId is used
+      // For creating MenuItem, our model needs categoryId
+      const selectedCat = categories.find(c => c.name === data.category);
+      if (selectedCat) {
+        data.categoryId = selectedCat.id;
+      }
+
+      if (editingItem) {
+        setIsUpdating(true);
+        await adminMenuService.update(editingItem.id, data);
+        toast.success("Cập nhật món ăn thành công!");
+      } else {
+        setIsCreating(true);
+        await adminMenuService.create(data);
+        toast.success("Thêm món ăn thành công!");
+      }
+      setFormOpen(false);
+      fetchMenu(); // Refresh data
+    } catch (error: any) {
+      toast.error(error.message || "Đã xảy ra lỗi khi lưu món ăn");
+    } finally {
+      setIsCreating(false);
+      setIsUpdating(false);
     }
   };
 
   const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
-    await deleteItem(deletingItem.id);
-    setDeleteOpen(false);
-    setDeletingItem(null);
+    try {
+      setIsDeleting(true);
+      await adminMenuService.delete(deletingItem.id);
+      toast.success("Xóa món ăn thành công!");
+      setDeleteOpen(false);
+      setDeletingItem(null);
+      fetchMenu(); // Refresh data
+    } catch (error: any) {
+      toast.error(error.message || "Đã xảy ra lỗi khi xóa món ăn");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -103,11 +175,12 @@ export default function AdminMenuPage() {
 
         <MenuToolbar
           filters={filters}
-          onSearchChange={setSearch}
-          onCategoryChange={setCategory}
-          onStatusChange={setStatus}
+          onSearchChange={(search) => setFilters(prev => ({ ...prev, search, page: 1 }))}
+          onCategoryChange={(category) => setFilters(prev => ({ ...prev, category, page: 1 }))}
+          onStatusChange={(status: any) => setFilters(prev => ({ ...prev, status, page: 1 }))}
           onAddNew={handleAddNew}
           total={menuData?.total}
+          // Truyền categories vào MenuToolbar nếu MenuToolbar có support, nếu không thì thôi (toolbar đang tĩnh)
         />
 
         <div className="mt-6">
@@ -125,7 +198,7 @@ export default function AdminMenuPage() {
                 Vui lòng thử lại sau
               </p>
             </div>
-          ) : menuData?.items.length === 0 ? (
+          ) : !menuData || menuData.items.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border border-neutral-100 shadow-card">
               <div className="text-6xl mb-4">🍽️</div>
               <p className="text-neutral-500 text-lg">Chưa có món ăn nào</p>
@@ -136,7 +209,7 @@ export default function AdminMenuPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {menuData!.items.map((item) => (
+                {menuData.items.map((item) => (
                   <MenuCard
                     key={item.id}
                     item={item}
@@ -146,9 +219,9 @@ export default function AdminMenuPage() {
                 ))}
               </div>
               <Pagination
-                page={menuData!.page}
-                totalPages={menuData!.totalPages}
-                onPageChange={setPage}
+                page={menuData.page}
+                totalPages={menuData.totalPages}
+                onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
               />
             </>
           )}
@@ -163,6 +236,7 @@ export default function AdminMenuPage() {
           onSubmit={handleFormSubmit}
           initialData={editingItem}
           isLoading={isCreating || isUpdating}
+          categories={categories}
         />
 
         <DeleteConfirmDialog

@@ -46,6 +46,15 @@ app.use('/api/qr', qrRoutes);
 const categoriesRoutes = require('./routes/categoriesRoutes');
 app.use('/api/categories', categoriesRoutes);
 
+const categoriesAdminRoutes = require('./routes/categoriesAdminRoutes');
+app.use('/api/admin/categories', categoriesAdminRoutes);
+
+const menuAdminRoutes = require('./routes/menuAdminRoutes');
+app.use('/api/admin/menu', menuAdminRoutes);
+
+const statsAdminRoutes = require('./routes/statsAdminRoutes');
+app.use('/api/admin/stats', statsAdminRoutes);
+
 app.get('/', (req, res) => res.send('API running'));
 
 const { initSocket } = require('./socket');
