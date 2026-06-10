@@ -5,10 +5,12 @@ import type { Category, MenuItem } from "@/types/menu";
 
 function getCategoryId(item: MenuItem): string | undefined {
   // populate có thể trả về object hoặc string
-  const cid = (item as any).categoryId;
+  const cid = (item as unknown as { categoryId?: unknown }).categoryId;
   if (!cid) return undefined;
   if (typeof cid === "string") return cid;
-  if (typeof cid === "object" && cid !== null) return cid._id ?? undefined;
+  if (typeof cid === "object" && cid !== null && "_id" in cid) {
+    return typeof cid._id === "string" ? cid._id : undefined;
+  }
   return undefined;
 }
 
@@ -23,7 +25,7 @@ export default function MenuCategoryFilter({
   defaultCategoryName: string;
   onFiltered: (filtered: MenuItem[], selectedCategoryId: string) => void;
 }) {
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("__default");
 
   const defaultCategoryId = useMemo(() => {
     const target = defaultCategoryName.trim().toLowerCase();
@@ -33,18 +35,17 @@ export default function MenuCategoryFilter({
     return found?.id ?? "all";
   }, [categories, defaultCategoryName]);
 
-  useEffect(() => {
-    setSelectedCategoryId(defaultCategoryId);
-  }, [defaultCategoryId]);
+  const effectiveCategoryId =
+    selectedCategoryId === "__default" ? defaultCategoryId : selectedCategoryId;
 
   const filteredItems = useMemo(() => {
-    if (selectedCategoryId === "all") return items;
-    return items.filter((it) => getCategoryId(it) === selectedCategoryId);
-  }, [items, selectedCategoryId]);
+    if (effectiveCategoryId === "all") return items;
+    return items.filter((it) => getCategoryId(it) === effectiveCategoryId);
+  }, [items, effectiveCategoryId]);
 
   useEffect(() => {
-    onFiltered(filteredItems, selectedCategoryId);
-  }, [filteredItems, selectedCategoryId, onFiltered]);
+    onFiltered(filteredItems, effectiveCategoryId);
+  }, [filteredItems, effectiveCategoryId, onFiltered]);
 
   return (
     <div className="space-y-4 mb-2 lg:mb-4">
@@ -53,7 +54,7 @@ export default function MenuCategoryFilter({
           type="button"
           onClick={() => setSelectedCategoryId("all")}
           className={`shrink-0 rounded-full px-3 py-1 text-xs sm:text-sm border transition-colors ${
-            selectedCategoryId === "all"
+            effectiveCategoryId === "all"
               ? "bg-primary-500 text-white border-primary-500"
               : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
           }`}
@@ -62,7 +63,7 @@ export default function MenuCategoryFilter({
         </button>
 
         {categories.map((cat) => {
-          const active = cat.id === selectedCategoryId;
+          const active = cat.id === effectiveCategoryId;
           return (
             <button
               key={cat.id}

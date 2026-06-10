@@ -63,6 +63,17 @@ export async function setTodayMenu(data: {
   });
 }
 
+// Staff/Admin: chỉ cập nhật trạng thái isAvailable (còn/hết)
+export async function updateMenuAvailability(
+  id: string,
+  isAvailable: boolean,
+): Promise<MenuItem> {
+  return apiClient<MenuItem>(`/menu/${id}/availability`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isAvailable }),
+  });
+}
+
 // Upload ảnh
 export async function uploadMenuImage(file: File): Promise<string> {
   const formData = new FormData();
@@ -78,3 +89,4 @@ export async function uploadMenuImage(file: File): Promise<string> {
 
   return result.url;
 }
+

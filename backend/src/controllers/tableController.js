@@ -1,63 +1,44 @@
 const Order = require('../models/Order');
 const Table = require('../models/Table');
-const Payments = require('../models/Payments');
 const { resolveTableByIdentifier } = require('../utils/resolveTable');
+const {
+    getOpenBillForTable,
+    refreshBillTotals,
+    buildBillResponse
+} = require('../services/billService');
 
-const VAT_RATE = 0.08; // VAT 8% khớp với Frontend
-
-// GET /api/tables/:tableId/bill
 exports.getTableBill = async (req, res) => {
     try {
         const { tableId } = req.params;
         const table = await resolveTableByIdentifier(tableId);
         if (!table) {
-            return res.status(404).json({ message: 'Khong co ban nay' });
-        }
-        const resolvedTableId = table._id;
-        
-        // Gom tất cả order CHƯA thanh toán (pending, cooking, done) của bàn này
-        const activeOrders = await Order.find({
-            tableId: resolvedTableId,
-            status: { $in: ['pending', 'cooking', 'done'] }
-        }).populate('items.menuItemId', 'name');
-
-        if (activeOrders.length === 0) {
-            return res.json({ tableId: table._id.toString(), tableNumber: table.number, items: [], subtotal: 0, vatAmount: 0, totalAmount: 0 });
+            return res.status(404).json({ message: 'Table not found' });
         }
 
-        let allItems = [];
-        let subtotal = 0;
-
-        // Trích xuất item từ nhiều order gộp lại thành 1 Bill duy nhất
-        activeOrders.forEach(order => {
-            order.items.forEach(item => {
-                allItems.push({
-                    name: item.menuItemId ? item.menuItemId.name : 'Món đã xóa',
-                    quantity: item.quantity,
-                    price: item.price
-                });
-                subtotal += item.price * item.quantity;
+        const bill = await getOpenBillForTable(table._id);
+        if (!bill) {
+            return res.json({
+                id: null,
+                tableId: table._id.toString(),
+                tableNumber: table.number,
+                status: null,
+                items: [],
+                subtotal: 0,
+                tax: 0,
+                vatAmount: 0,
+                discount: 0,
+                totalAmount: 0
             });
-        });
+        }
 
-        const vatAmount = Math.round(subtotal * VAT_RATE);
-        const totalAmount = subtotal + vatAmount;
-
-        res.json({
-            tableId: table._id.toString(),
-            tableNumber: table.number,
-            items: allItems,
-            subtotal,
-            vatAmount,
-            totalAmount,
-            orderIds: activeOrders.map(o => o._id) // Frontend có thể lưu list này để tra cứu
-        });
+        const refreshedBill = await refreshBillTotals(bill._id);
+        return res.json(await buildBillResponse(refreshedBill, table));
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi lấy hóa đơn bàn' });
+        console.error('Get table bill error:', error);
+        return res.status(500).json({ message: 'Failed to get table bill' });
     }
 };
 
-// GET /api/tables/:tableId/exists
 exports.tableExists = async (req, res) => {
     try {
         const { tableId } = req.params;
@@ -73,59 +54,44 @@ exports.tableExists = async (req, res) => {
         });
     } catch (error) {
         console.error('Error checking table exists:', error);
-        return res.status(500).json({ message: 'Lỗi khi kiểm tra bàn' });
+        return res.status(500).json({ message: 'Failed to check table' });
     }
 };
 
-// POST /api/tables/:tableId/checkout
 exports.checkoutTable = async (req, res) => {
     try {
         const { tableId } = req.params;
         const { paymentMethod = 'cash' } = req.body;
         const table = await resolveTableByIdentifier(tableId);
         if (!table) {
-            return res.status(404).json({ message: 'Khong co ban nay' });
+            return res.status(404).json({ message: 'Table not found' });
         }
 
-        const activeOrders = await Order.find({
-            tableId: table._id,
-            status: { $in: ['pending', 'cooking', 'done'] }
-        });
+        const bill = await getOpenBillForTable(table._id);
+        if (!bill) {
+            return res.status(400).json({ message: 'Table has no open bill to pay' });
+        }
 
+        const activeOrders = await Order.find({ billId: bill._id, status: { $ne: 'cancelled' } });
         if (activeOrders.length === 0) {
-            return res.status(400).json({ message: 'Bàn không có đơn hàng nào cần thanh toán' });
+            return res.status(400).json({ message: 'Open bill has no orders to pay' });
         }
 
-        let tableSubtotal = 0;
-        let orderIds = [];
-        // Đổi trạng thái tất cả order của bàn này thành "paid"
-        for (let order of activeOrders) {
-            order.status = 'paid';
-            order.paymentMethod = paymentMethod;
-            order.paidAt = new Date();
-            await order.save();
-            
-            const orderSubtotal = order.totalAmount || order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            tableSubtotal += orderSubtotal;
-            orderIds.push(order._id);
-        }
-        const tableVatAmount = Math.round(tableSubtotal * VAT_RATE);
-        const tableTotalAmountWithVat = tableSubtotal + tableVatAmount;
+        const refreshedBill = await refreshBillTotals(bill._id);
+        refreshedBill.status = 'paid';
+        refreshedBill.paymentMethod = paymentMethod || 'cash';
+        refreshedBill.paidAt = new Date();
+        await refreshedBill.save();
 
-        // Lưu thông tin thanh toán vào collection Payments
-        await Payments.create({
-            orderIds: orderIds,
-            tableId: table._id,
-            amount: tableTotalAmountWithVat,
-            method: paymentMethod || 'cash',
-            paidBy: req.user?.id
-        });
-
-        // Chuyển bàn thành trống (available)
         await Table.findByIdAndUpdate(table._id, { status: 'available' });
 
-        res.json({ success: true, message: 'Thanh toán thành công toàn bộ bàn' });
+        return res.json({
+            success: true,
+            message: 'Bill paid successfully',
+            bill: await buildBillResponse(refreshedBill, table)
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi thanh toán bàn' });
+        console.error('Checkout table error:', error);
+        return res.status(500).json({ message: 'Failed to checkout bill' });
     }
 };

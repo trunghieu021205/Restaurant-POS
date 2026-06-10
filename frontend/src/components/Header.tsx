@@ -7,6 +7,7 @@ import useAuthStore from "@/stores/auth";
 import useCartStore from "@/stores/cart";
 import useBillStore from "@/stores/bill";
 import { ShoppingCart, Menu, X, ChevronDown, FileText } from "lucide-react";
+import { normalizeRole } from "@/lib/roles";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -37,15 +38,17 @@ export default function Header() {
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
-  const isStaffOrAdmin = user?.role === "staff" || user?.role === "admin";
+  const role = normalizeRole(user?.role);
+  const isStaffOrAdmin = role === "staff" || role === "admin";
+  const menuHref = role === "staff" ? "/staff/menu" : "/admin/menu";
   const navLinks = [
     ...(isStaffOrAdmin
       ? [
-          { href: "/admin/menu", label: "Thực đơn" },
+          { href: menuHref, label: "Thực đơn" },
           { href: "/kitchen", label: "Bếp" },
         ]
       : []),
-    ...(user?.role === "admin"
+    ...(role === "admin"
       ? [{ href: "/admin/stats", label: "Thống kê" }]
       : []),
   ];

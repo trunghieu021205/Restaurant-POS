@@ -1,30 +1,79 @@
-import { Bill } from '@/types/bill';
-import { getBillByTable, checkoutTableInMock } from '@/data/dummyBills';
+import apiClient from "@/services/apiClient";
+import type { Bill, PaymentMethod } from "@/types/bill";
+import type { OrderStatus } from "@/services/orders";
 
-const VAT_RATE = 0.08;
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+interface RawBillItem {
+  id?: string;
+  orderId?: string;
+  orderNumber?: string;
+  name: string;
+  price: number;
+  quantity: number;
+  notes?: string;
+  note?: string;
+  status?: OrderStatus;
+}
 
-function computeBillTotals(items: Bill['items']): Pick<Bill, 'subtotal' | 'vatAmount' | 'totalAmount'> {
-  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const vatAmount = Math.round(subtotal * VAT_RATE);
-  return { subtotal, vatAmount, totalAmount: subtotal + vatAmount };
+interface RawBill {
+  id: string | null;
+  tableId: string;
+  tableNumber?: number;
+  status: Bill["status"];
+  items: RawBillItem[];
+  subtotal: number;
+  tax?: number;
+  vatAmount: number;
+  discount?: number;
+  totalAmount: number;
+  paymentMethod?: PaymentMethod;
+  paidAt?: string;
+}
+
+function mapBill(bill: RawBill): Bill {
+  return {
+    id: bill.id,
+    tableId: bill.tableId,
+    tableNumber: bill.tableNumber,
+    status: bill.status,
+    subtotal: bill.subtotal,
+    tax: bill.tax ?? bill.vatAmount,
+    vatAmount: bill.vatAmount,
+    discount: bill.discount ?? 0,
+    totalAmount: bill.totalAmount,
+    paymentMethod: bill.paymentMethod,
+    paidAt: bill.paidAt,
+    items: bill.items.map((item, index) => ({
+      id: item.id ?? `${item.name}-${index}`,
+      orderId: item.orderId,
+      orderNumber: item.orderNumber,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      notes: item.notes ?? item.note,
+      status: item.status,
+    })),
+  };
 }
 
 export async function fetchBill(tableId: string): Promise<Bill> {
-  await delay(300);
-  const raw = getBillByTable(tableId);
-
-  if (!raw) {
-    return { tableId, items: [], subtotal: 0, vatAmount: 0, totalAmount: 0 };
-  }
-
-  const totals = computeBillTotals(raw.items);
-  return { ...raw, ...totals };
+  const bill = await apiClient<RawBill>(`/tables/${encodeURIComponent(tableId)}/bill`);
+  return mapBill(bill);
 }
 
-export async function checkoutTable(tableId: string): Promise<{ success: boolean }> {
-  await delay(500);
-  const success = checkoutTableInMock(tableId);
-  if (!success) throw new Error('Thanh toán thất bại');
-  return { success: true };
+export async function checkoutTable(
+  tableId: string,
+  paymentMethod: PaymentMethod,
+): Promise<{ success: boolean; bill: Bill }> {
+  const result = await apiClient<{ success: boolean; bill: RawBill }>(
+    `/tables/${encodeURIComponent(tableId)}/checkout`,
+    {
+      method: "POST",
+      body: JSON.stringify({ paymentMethod }),
+    },
+  );
+
+  return {
+    success: result.success,
+    bill: mapBill(result.bill),
+  };
 }

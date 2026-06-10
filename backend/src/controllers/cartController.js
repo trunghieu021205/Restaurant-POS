@@ -96,10 +96,11 @@ exports.clearCart = async (req, res) => {
         const table = await resolveTable(tableId);
         if (!table) return res.status(404).json({ message: 'Khong co ban nay' });
 
-        const result = await Cart.findOneAndDelete({ tableId: table._id });
-        if (!result) {
-            return res.status(404).json({ message: 'Gio hang khong ton tai' });
-        }
+        await Cart.findOneAndUpdate(
+            { tableId: table._id },
+            { $set: { items: [] } },
+            { upsert: true, new: true }
+        );
 
         res.json({ message: 'Da don sach gio hang' });
     } catch (error) {

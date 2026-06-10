@@ -85,12 +85,22 @@ export default function MenuItemCard({ item }: { item: MenuItem }) {
             bg-neutral-50 transition-all"
         />
 
-        {/* Nút thêm */}
+        {/* Badge & Nút thêm */}
+        {item.isAvailable === false ? (
+          <div className="mt-1">
+            <span className="inline-flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 text-[11px] px-2 py-1">
+              Hết món
+            </span>
+          </div>
+        ) : null}
+
         <button
-          onClick={handleAddToCart}
+          onClick={item.isAvailable === false ? undefined : handleAddToCart}
+          disabled={item.isAvailable === false}
           className="w-full bg-primary-500 hover:bg-primary-600 active:scale-95
             text-white text-xs sm:text-sm py-2 rounded-btn font-medium
-            transition-all duration-150 shadow-sm hover:shadow-md"
+            transition-all duration-150 shadow-sm hover:shadow-md
+            disabled:opacity-40 disabled:cursor-not-allowed"
         >
           + Thêm vào giỏ
         </button>

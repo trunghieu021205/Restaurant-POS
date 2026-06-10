@@ -1,6 +1,6 @@
 // components/kitchen/OrderFilter.tsx
 "use client";
-import { OrderStatus } from "@/data/dummyOrders";
+import type { OrderStatus } from "@/services/orders";
 
 interface OrderFilterProps {
   selected: OrderStatus | "all";
@@ -9,8 +9,8 @@ interface OrderFilterProps {
 
 const tabs: { value: OrderStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
-  { value: "new", label: "Mới" },
-  { value: "preparing", label: "Đang chế biến" },
+  { value: "pending", label: "Mới" },
+  { value: "cooking", label: "Đang chế biến" },
   { value: "done", label: "Hoàn thành" },
 ];
 

@@ -1,40 +1,40 @@
-// components/kitchen/OrderCard.tsx
 "use client";
+
 import { motion } from "framer-motion";
-import { Order, OrderStatus } from "@/data/dummyOrders";
+import type { KitchenOrder, OrderStatus } from "@/services/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
-import { toast } from "@/lib/toast";
 
 interface OrderCardProps {
-  order: Order;
+  order: KitchenOrder;
   onStatusChange: (orderId: string, newStatus: OrderStatus) => void;
+  isUpdating?: boolean;
 }
 
 const nextStatus: Record<OrderStatus, OrderStatus | null> = {
-  new: "preparing",
-  preparing: "done",
+  pending: "confirmed",
+  confirmed: "cooking",
+  cooking: "done",
   done: null,
+  cancelled: null,
 };
 
-const actionLabels: Record<string, string> = {
-  new: "Nhận đơn",
-  preparing: "Hoàn thành",
+const actionLabels: Partial<Record<OrderStatus, string>> = {
+  pending: "Xác nhận",
+  confirmed: "Bắt đầu nấu",
+  cooking: "Hoàn thành",
 };
 
-export default function OrderCard({ order, onStatusChange }: OrderCardProps) {
+export default function OrderCard({
+  order,
+  onStatusChange,
+  isUpdating,
+}: OrderCardProps) {
   const next = nextStatus[order.status];
-
-  const handleAction = () => {
-    if (!next) return;
-    onStatusChange(order.id, next);
-    toast.success(
-      `Đơn ${order.id} chuyển sang "${next === "preparing" ? "Đang chế biến" : "Hoàn thành"}"`,
-    );
-  };
-
-  const formattedTime = new Date(order.createdAt).toLocaleTimeString("vi-VN", {
+  const formattedTime = new Date(order.createdAt).toLocaleString("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
   });
 
   return (
@@ -46,38 +46,39 @@ export default function OrderCard({ order, onStatusChange }: OrderCardProps) {
       transition={{ duration: 0.3 }}
       className="bg-white rounded-card shadow-card p-4 flex flex-col gap-3 border border-gray-100 h-full"
     >
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="font-semibold text-gray-900">Đơn #{order.id}</h3>
+      <div className="flex justify-between items-center gap-3">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-gray-900 truncate">
+            Đơn #{order.orderNumber}
+          </h3>
           <p className="text-sm text-gray-500">
-            Bàn {order.tableId} • {formattedTime}
+            Bàn số {order.tableNumber} • {formattedTime}
           </p>
         </div>
         <OrderStatusBadge status={order.status} />
       </div>
 
-      {/* Danh sách món */}
       <ul className="space-y-1.5 flex-1">
         {order.items.map((item) => (
-          <li key={item.id} className="flex justify-between text-sm">
-            <span>
-              {item.name} x{item.quantity}
-              {item.notes && (
-                <span className="text-gray-400 ml-1">({item.notes})</span>
-              )}
-            </span>
+          <li key={item.id} className="text-sm">
+            <div className="flex justify-between gap-2">
+              <span className="font-medium text-gray-800">{item.name}</span>
+              <span className="text-gray-600">x{item.quantity}</span>
+            </div>
+            {item.notes && (
+              <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>
+            )}
           </li>
         ))}
       </ul>
 
-      {/* Hành động */}
       {next && (
         <button
-          onClick={handleAction}
-          className="w-full py-2 px-4 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+          onClick={() => onStatusChange(order.id, next)}
+          disabled={isUpdating}
+          className="w-full py-2 px-4 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500/50 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {actionLabels[order.status]}
+          {isUpdating ? "Đang cập nhật..." : actionLabels[order.status]}
         </button>
       )}
     </motion.div>

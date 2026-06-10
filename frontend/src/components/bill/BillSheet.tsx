@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Loader2, Receipt, AlertCircle, Printer, X } from "lucide-react";
 import { useBill } from "@/hooks/useBill";
 import { useCheckout } from "@/hooks/useCheckout";
+import type { PaymentMethod } from "@/types/bill";
 import { BillSkeleton } from "./BillSkeleton";
 import { formatCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -16,14 +18,20 @@ interface BillSheetProps {
   onClose: () => void;
 }
 
-export function BillSheet({ tableId, open, onClose }: BillSheetProps) {
+export function BillSheet({
+  tableId,
+  tableNumber,
+  open,
+  onClose,
+}: BillSheetProps) {
   const isMobile = useIsMobile();
   const { data: bill, isLoading, isError } = useBill(tableId);
   const checkout = useCheckout(tableId);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
 
   const handleCheckout = () => {
     if (!bill || bill.items.length === 0) return;
-    checkout.mutate();
+    checkout.mutate(paymentMethod);
   };
 
   return (
@@ -54,7 +62,7 @@ export function BillSheet({ tableId, open, onClose }: BillSheetProps) {
               123 Đường Ẩm Thực, TP. Hồ Chí Minh
             </p>
             <div className="flex justify-center gap-6 mt-2 text-sm">
-              <span className="font-medium">Bàn: {tableId}</span>
+              <span className="font-medium">Bàn số: {tableNumber}</span>
               <span>{new Date().toLocaleDateString("vi-VN")}</span>
             </div>
           </div>
@@ -138,12 +146,26 @@ export function BillSheet({ tableId, open, onClose }: BillSheetProps) {
                 {formatCurrency(bill.totalAmount)}
               </span>
             </div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phương thức thanh toán
+            </label>
+            <select
+              value={paymentMethod}
+              onChange={(event) =>
+                setPaymentMethod(event.target.value as PaymentMethod)
+              }
+              className="w-full mb-3 rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-400/20"
+            >
+              <option value="cash">Tiền mặt</option>
+              <option value="credit_card">Thẻ ngân hàng</option>
+              <option value="e_wallet">Ví điện tử</option>
+            </select>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 className="flex-1"
                 size="lg"
-                onClick={() => alert("Đã gửi lệnh in (mock)")}
+                onClick={() => window.print()}
               >
                 <Printer className="mr-2 h-4 w-4" />
                 In

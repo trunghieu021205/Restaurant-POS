@@ -3,7 +3,6 @@
 
 import { MenuItem } from "@/types/menu";
 import { Edit, Trash2, Circle } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 
 interface MenuCardProps {
   item: MenuItem;
@@ -19,6 +18,8 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
     }).format(price);
 
   const hasImage = item.imageUrl && item.imageUrl !== "";
+  const categoryName =
+    typeof item.category === "object" ? item.category.name : item.category;
 
   return (
     <div className="group bg-white rounded-radius-card shadow-card hover:shadow-card-hover transition-all border border-neutral-100 overflow-hidden flex flex-col">
@@ -91,7 +92,7 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
         </p>
         <div className="flex items-center justify-between mt-auto pt-3 border-t border-neutral-50">
           <span className="text-xs px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded-full">
-            {item.category}
+            {categoryName ?? "Chưa phân loại"}
           </span>
           <span className="font-bold text-primary-600">
             {formatPrice(item.price)}

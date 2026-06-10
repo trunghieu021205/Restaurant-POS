@@ -1,26 +1,25 @@
 const Order = require('../models/Order');
+const Bill = require('../models/Bill');
 
-// GET /api/admin/stats
 exports.getStats = async (req, res) => {
     try {
-        // 1. Tổng doanh thu + số order đã thanh toán
-        const revenueResult = await Order.aggregate([
+        const revenueResult = await Bill.aggregate([
             { $match: { status: 'paid' } },
             {
                 $group: {
                     _id: null,
                     totalRevenue: { $sum: '$totalAmount' },
-                    paidOrders: { $sum: 1 }
+                    paidBills: { $sum: 1 }
                 }
             }
         ]);
 
         const totalRevenue = revenueResult[0]?.totalRevenue || 0;
-        const paidOrders = revenueResult[0]?.paidOrders || 0;
+        const paidBills = revenueResult[0]?.paidBills || 0;
+        const paidBillIds = await Bill.find({ status: 'paid' }).distinct('_id');
 
-        // 2. Top 5 món bán chạy nhất
         const topItems = await Order.aggregate([
-            { $match: { status: 'paid' } },
+            { $match: { billId: { $in: paidBillIds }, status: { $ne: 'cancelled' } } },
             { $unwind: '$items' },
             {
                 $group: {
@@ -52,13 +51,14 @@ exports.getStats = async (req, res) => {
             }
         ]);
 
-        res.json({
+        return res.json({
             totalRevenue,
-            paidOrders,
+            paidBills,
+            paidOrders: paidBills,
             topItems
         });
     } catch (error) {
         console.error('Get stats error:', error);
-        res.status(500).json({ message: 'Lấy thống kê thất bại' });
+        return res.status(500).json({ message: 'Failed to fetch stats' });
     }
 };

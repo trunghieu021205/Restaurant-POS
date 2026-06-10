@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, use, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import MenuGrid from "@/components/menu/MenuGrid";
 import MenuSkeleton from "@/components/menu/MenuSkeleton";
 import Cart from "@/components/cart/Cart";
@@ -10,15 +12,20 @@ import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "@/components/ErrorFallback";
 import { BillSheet } from "@/components/bill/BillSheet";
 import { useTodayMenu } from "@/hooks/useTodayMenu";
-import { resolveTable, type ResolvedTable } from "@/services/table";
+import type { ResolvedTable } from "@/services/table";
+import { checkInTableByQr, validateTableSession } from "@/services/qr";
 import { fetchCategories } from "@/services/category";
 import type { Category } from "@/types/menu";
 import MenuCategoryFilter from "./MenuCategoryFilter";
+import { fetchTableOrders } from "@/services/orders";
+import OrderStatusBadge from "@/components/kitchen/OrderStatusBadge";
 
 type Params = Promise<{ id: string }>;
 
 export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const qrToken = searchParams.get("qrToken");
   const { isOpen: billOpen, closeBill, setTableId } = useBillStore();
   const { fetchCart, collapseCart } = useCartStore();
   const isExpanded = useCartStore((state) => state.isExpanded);
@@ -26,7 +33,9 @@ export default function TablePage({ params }: { params: Params }) {
   const { menuItems, isLoading, isError, error, refetch } = useTodayMenu();
 
   const [categories, setCategories] = useState<Category[]>([]);
-  const [filteredItems, setFilteredItems] = useState(menuItems);
+  const [filteredItems, setFilteredItems] = useState<typeof menuItems | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -45,26 +54,46 @@ export default function TablePage({ params }: { params: Params }) {
     };
   }, []);
 
-  useEffect(() => {
-    // nếu chưa filter kịp thì giữ menuItems
-    setFilteredItems(menuItems);
-  }, [menuItems]);
-
   // tableOk: null = đang kiểm tra, false = không tồn tại
   const [tableOk, setTableOk] = useState<boolean | null>(null);
+  const [accessDenied, setAccessDenied] = useState<string | null>(null);
   const [table, setTable] = useState<ResolvedTable | null>(null);
+  const tableSessionKey = `table-session:${id}`;
+
+  const { data: tableOrders = [] } = useQuery({
+    queryKey: ["table-orders", table?.id],
+    queryFn: () => fetchTableOrders(table?.id ?? id),
+    enabled: tableOk === true && !!table,
+    refetchInterval: 10_000,
+  });
 
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
-      // 1) Validate table exists trước khi setTableId/fetchCart
       let resolvedTable: ResolvedTable | null = null;
+      let denialMessage = "Vui lòng quét QR hợp lệ để truy cập bàn.";
       try {
-        resolvedTable = await resolveTable(id);
+        const existingSession =
+          typeof window !== "undefined"
+            ? sessionStorage.getItem(tableSessionKey)
+            : null;
+
+        if (qrToken) {
+          const checkIn = await checkInTableByQr(id, qrToken);
+          sessionStorage.setItem(tableSessionKey, checkIn.sessionToken);
+          sessionStorage.setItem(
+            `table-session:${checkIn.table.id}`,
+            checkIn.sessionToken,
+          );
+          resolvedTable = checkIn.table;
+        } else if (existingSession) {
+          const validated = await validateTableSession(id, existingSession);
+          resolvedTable = validated.table;
+        }
       } catch (e) {
-        console.error("resolveTable failed:", e);
-        // nếu endpoint check lỗi/404 thì coi như bàn không hợp lệ
+        console.error("table access validation failed:", e);
+        denialMessage = e instanceof Error ? e.message : denialMessage;
         resolvedTable = null;
       }
 
@@ -72,12 +101,14 @@ export default function TablePage({ params }: { params: Params }) {
 
       if (!resolvedTable) {
         setTableOk(false);
+        setAccessDenied(denialMessage);
         setTable(null);
         setTableId(null);
         return;
       }
 
       setTableOk(true);
+      setAccessDenied(null);
       setTable(resolvedTable);
 
       setTableId(resolvedTable.id);
@@ -91,7 +122,7 @@ export default function TablePage({ params }: { params: Params }) {
       cancelled = true;
       setTableId(null);
     };
-  }, [id, setTableId, fetchCart, collapseCart]);
+  }, [id, qrToken, tableSessionKey, setTableId, fetchCart, collapseCart]);
 
   if (isLoading || tableOk === null) return <MenuSkeleton />;
 
@@ -99,7 +130,9 @@ export default function TablePage({ params }: { params: Params }) {
   if (tableOk === false) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center px-4">
-        <p className="text-red-500 font-medium">Không có bàn này</p>
+        <p className="text-red-500 font-medium">
+          {accessDenied ?? "Không có bàn này"}
+        </p>
       </div>
     );
   }
@@ -150,14 +183,58 @@ export default function TablePage({ params }: { params: Params }) {
                 defaultCategoryName="Món chính"
                 onFiltered={(filtered) => setFilteredItems(filtered)}
               />
-              <MenuGrid items={filteredItems} />
+              <MenuGrid items={filteredItems ?? menuItems} />
             </>
+          )}
+
+          {tableOrders.length > 0 && (
+            <section className="mt-8">
+              <h2 className="text-lg font-semibold text-neutral-800 mb-3">
+                Món đã order
+              </h2>
+              <div className="space-y-3">
+                {tableOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="bg-white border border-neutral-100 rounded-card p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <p className="text-sm font-medium text-neutral-700">
+                        Đơn #{order.orderNumber}
+                      </p>
+                      <OrderStatusBadge status={order.status} />
+                    </div>
+                    <ul className="divide-y divide-neutral-50">
+                      {order.items.map((item) => (
+                        <li
+                          key={item.id}
+                          className="py-2 flex items-start justify-between gap-3 text-sm"
+                        >
+                          <span className="text-neutral-700">
+                            {item.name}
+                            {item.notes && (
+                              <span className="block text-xs text-neutral-400">
+                                {item.notes}
+                              </span>
+                            )}
+                          </span>
+                          <span className="font-medium text-neutral-500">
+                            x{item.quantity}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
         </div>
 
         <Cart />
         <BillSheet
           tableId={table?.id ?? id}
+          tableNumber={table?.number}
           open={billOpen}
           onClose={closeBill}
         />

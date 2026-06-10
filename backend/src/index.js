@@ -54,6 +54,14 @@ app.get('/', (req, res) => res.send('API running'));
 const { initSocket } = require('./socket');
 initSocket(io);
 
+// Start cron jobs
+try {
+  const { startCronJobs } = require('./utils/cron');
+  startCronJobs();
+} catch (e) {
+  console.error('Failed to start cron jobs:', e);
+}
+
 // Thêm kiểm tra socket ready
 if (!io) {
   console.error('CRITICAL: Socket failed to initialize');

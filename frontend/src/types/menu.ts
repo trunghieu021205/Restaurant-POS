@@ -6,12 +6,16 @@ export interface MenuItem {
   categoryId?: string;
   description: string;
   imageUrl?: string;
-  category?: string;
+  category?: string | Category;
   isAvailable: boolean;
-  isToday?: boolean;
+  isVisibleToday?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
+
+// Backwards compat (if UI/admin still sends old field)
+// type MenuItemLegacy = { isToday?: boolean };
+
 
 export interface MenuFormData {
   name: string;
@@ -20,7 +24,7 @@ export interface MenuFormData {
   description: string;
   imageUrl?: string;
   isAvailable: boolean;
-  isToday: boolean;
+  isVisibleToday: boolean;
 }
 
 export interface MenuFilters {

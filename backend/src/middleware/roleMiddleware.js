@@ -3,7 +3,9 @@ const requiredRole = (allowedRoles) => {
         if (!req.user) {
             return res.status(401).json({ message: 'Unauthorized' });
         }
-        if (!allowedRoles.includes(req.user.role)) {
+        const role = req.user.role?.toLowerCase();
+        const allowed = allowedRoles.map((allowedRole) => allowedRole.toLowerCase());
+        if (!allowed.includes(role)) {
             return res.status(403).json({ message: 'Forbidden' });
         }
         next();

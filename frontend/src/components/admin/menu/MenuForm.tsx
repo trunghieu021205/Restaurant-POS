@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Sheet } from "@/components/ui/Sheet";
+import { Sheet, SheetContent } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { ImageUpload } from "./ImageUpload";
@@ -45,7 +45,7 @@ export function MenuForm({
       imageUrl: "",
       categoryId: "",
       isAvailable: true,
-      isToday: false,
+      isVisibleToday: false,
     },
   });
 
@@ -75,7 +75,7 @@ export function MenuForm({
         imageUrl: initialData.imageUrl,
         categoryId: initialData.categoryId,
         isAvailable: initialData.isAvailable,
-        isToday: initialData.isToday,
+        isVisibleToday: initialData.isVisibleToday ?? false,
       });
     } else {
       reset({
@@ -85,7 +85,7 @@ export function MenuForm({
         imageUrl: "",
         categoryId: "",
         isAvailable: true,
-        isToday: false,
+        isVisibleToday: false,
       });
     }
   }, [initialData, reset, open]);
@@ -97,12 +97,8 @@ export function MenuForm({
   };
 
   return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      side="center"
-      className="w-full"
-    >
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="center" className="w-full max-w-3xl lg:max-w-4xl p-0">
       <div className="relative bg-white rounded-2xl shadow-2xl border border-neutral-200 overflow-hidden mx-4 w-full max-w-3xl lg:max-w-4xl">
         <div className="flex flex-col h-full max-h-[90vh]">
           {/* Header */}
@@ -226,7 +222,7 @@ export function MenuForm({
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          {...register("isToday")}
+                          {...register("isVisibleToday")}
                           className="w-4 h-4 text-primary-500 focus:ring-primary-500"
                         />
                         <span className="text-sm text-neutral-700">
@@ -269,6 +265,7 @@ export function MenuForm({
           </div>
         </div>
       </div>
+      </SheetContent>
     </Sheet>
   );
 }

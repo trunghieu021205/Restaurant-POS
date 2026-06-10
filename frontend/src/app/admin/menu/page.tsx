@@ -13,6 +13,7 @@ import { MenuItem, MenuFormData } from "@/types/menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { AlertCircle, UtensilsCrossed } from "lucide-react";
+import { hasRole } from "@/lib/roles";
 
 export default function AdminMenuPage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function AdminMenuPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<MenuItem | null>(null);
 
-  if (!authLoading && (!user || user.role !== "admin")) {
+  if (!authLoading && !hasRole(user, ["admin"])) {
     router.push("/");
     return null;
   }
@@ -130,7 +131,7 @@ export default function AdminMenuPage() {
               <div className="text-6xl mb-4">🍽️</div>
               <p className="text-neutral-500 text-lg">Chưa có món ăn nào</p>
               <p className="text-sm text-neutral-400 mt-1">
-                Nhấn "Thêm món mới" để bắt đầu
+                Nhấn &quot;Thêm món mới&quot; để bắt đầu
               </p>
             </div>
           ) : (

@@ -6,6 +6,9 @@ import useBillStore from "@/stores/bill";
 import { formatCurrency } from "@/lib/utils";
 import type { CartItem } from "@/types/cart";
 import { useDebouncedCallback } from "use-debounce";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createOrderFromCart } from "@/services/orders";
+import { toast } from "@/lib/toast";
 
 // ── Item riêng biệt để isolate state ────────────────────────────
 function CartItemRow({
@@ -73,6 +76,7 @@ function CartItemRow({
 // ── Cart chính ───────────────────────────────────────────────────
 export default function Cart() {
   const {
+    tableId,
     items,
     removeItem,
     updateNote,
@@ -83,16 +87,37 @@ export default function Cart() {
     collapseCart,
   } = useCartStore();
   const { openBill } = useBillStore();
+  const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const totalAmount = getTotal();
   const isEmpty = items.length === 0;
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
 
-  const handleSendOrder = async () => {
-    alert("Gửi order thành công! (mock)");
-    clearCart();
-    setMobileOpen(false);
+  const sendOrder = useMutation({
+    mutationFn: async () => {
+      if (!tableId) throw new Error("Chưa chọn bàn");
+      if (items.length === 0) throw new Error("Giỏ hàng trống");
+      return createOrderFromCart(tableId, items);
+    },
+    onSuccess: async () => {
+      await clearCart();
+      if (tableId) {
+        queryClient.invalidateQueries({ queryKey: ["bill", tableId] });
+        queryClient.invalidateQueries({ queryKey: ["table-orders", tableId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("Đã gửi order đến bếp");
+      setMobileOpen(false);
+      collapseCart();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gửi order thất bại");
+    },
+  });
+
+  const handleSendOrder = () => {
+    sendOrder.mutate();
   };
 
   const handleViewBill = () => {
@@ -148,11 +173,7 @@ export default function Cart() {
           >
             {items.map((item) => (
               <CartItemRow
-                key={
-                  typeof item.menuItemId === "string"
-                    ? item.menuItemId
-                    : item.menuItemId?.id
-                }
+                key={item.menuItemId}
                 item={item}
                 onRemove={removeItem}
                 onNoteChange={updateNote}
@@ -170,9 +191,10 @@ export default function Cart() {
             </div>
             <button
               onClick={handleSendOrder}
+              disabled={sendOrder.isPending}
               className="w-full bg-primary-500 hover:bg-primary-600 active:scale-95 text-white py-2.5 rounded-btn font-medium text-sm transition-all shadow-sm hover:shadow-md"
             >
-              Gửi order
+              {sendOrder.isPending ? "Đang gửi..." : "Gửi order"}
             </button>
             <button
               onClick={handleViewBill}

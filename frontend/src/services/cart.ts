@@ -6,9 +6,11 @@ import { Cart, CartItem } from '@/types/cart';
 interface RawCartItem {
   menuItemId: {
     _id: string;
+    id?: string;
     name: string;
     price: number;
     image?: string;
+    imageUrl?: string;
   } | string; // trước populate hoặc edge case
   quantity: number;
   note?: string;
@@ -26,7 +28,7 @@ function mapCart(raw: RawCart): Cart {
     tableId: raw.tableId,
     items: raw.items.map((item): CartItem => {
       const menuItemObj = typeof item.menuItemId === 'object' && item.menuItemId !== null
-        ? item.menuItemId as any
+        ? item.menuItemId
         : null;
 
       return {

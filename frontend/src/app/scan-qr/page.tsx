@@ -6,7 +6,7 @@ import { Camera, Keyboard, Loader2, Upload, X } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 
 import { parseTableQrValue } from "@/lib/tableQr";
-import { resolveTable } from "@/services/table";
+import { checkInTableByQr } from "@/services/qr";
 
 export default function ScanQRPage() {
   const router = useRouter();
@@ -51,12 +51,18 @@ export default function ScanQRPage() {
         setScanError(null);
         setScanStatus("Đang kiểm tra bàn...");
 
-        const table = await resolveTable(parsed.tableId);
-        if (!table) {
-          setScanError("Bàn không tồn tại trong hệ thống.");
+        if (!parsed.qrToken) {
+          setScanError("QR không hợp lệ hoặc thiếu mã truy cập.");
           setScanStatus(null);
           return;
         }
+
+        const { table, sessionToken } = await checkInTableByQr(
+          parsed.tableId,
+          parsed.qrToken,
+        );
+        sessionStorage.setItem(`table-session:${table.id}`, sessionToken);
+        sessionStorage.setItem(`table-session:${parsed.tableId}`, sessionToken);
 
         router.push(`/table/${encodeURIComponent(parsed.tableId)}`);
       } catch (error) {

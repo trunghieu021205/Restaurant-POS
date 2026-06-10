@@ -6,14 +6,16 @@ export interface CartItem {
         id: string;
         name: string;
         price: number;
-        description: string;
+        description?: string;
         imageUrl?: string;
+        image?: string;
         category?: string;
-        isAvailable: boolean;
+        isAvailable?: boolean;
     };
 }
 
 export interface Cart {
+    id: string;
     tableId: string;
     items: CartItem[];
 }

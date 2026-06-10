@@ -18,6 +18,9 @@ router.get('/:id', authMiddleware, getMenuItem);
 router.post('/', authMiddleware, requiredRole(['admin']), createMenuItem);
 router.put('/:id', authMiddleware, requiredRole(['admin']), updateMenuItem);
 router.delete('/:id', authMiddleware, requiredRole(['admin']), deleteMenuItem);
-router.patch('/today', authMiddleware, requiredRole(['staff', 'admin']), setTodayMenu);
+router.patch('/today', authMiddleware, requiredRole(['admin']), setTodayMenu);
+const { setMenuAvailability } = require('../controllers/menuAvailabilityController');
+
+router.patch('/:id/availability', authMiddleware, requiredRole(['staff', 'admin']), setMenuAvailability);
 
 module.exports = router;

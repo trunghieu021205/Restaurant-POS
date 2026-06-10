@@ -1,5 +1,5 @@
 export type TableQrParseResult =
-  | { ok: true; tableId: string }
+  | { ok: true; tableId: string; qrToken: string | null }
   | { ok: false; reason: 'empty' | 'foreign' | 'invalid' };
 
 const TABLE_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -20,21 +20,22 @@ export function parseTableQrValue(value: string, currentOrigin?: string): TableQ
     return { ok: false, reason: 'empty' };
   }
 
-  const relativePath = raw.startsWith('/') ? raw : `/${raw}`;
-  const directId = extractIdFromPath(relativePath);
-  if (directId) {
-    return { ok: true, tableId: directId };
-  }
-
   try {
-    const url = new URL(raw);
-    if (currentOrigin && url.origin !== currentOrigin) {
+    const url = currentOrigin ? new URL(raw, currentOrigin) : new URL(raw);
+    const isAbsoluteUrl = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(raw);
+    if (isAbsoluteUrl && currentOrigin && url.origin !== currentOrigin) {
       return { ok: false, reason: 'foreign' };
     }
 
     const id = extractIdFromPath(url.pathname);
-    return id ? { ok: true, tableId: id } : { ok: false, reason: 'invalid' };
+    return id
+      ? { ok: true, tableId: id, qrToken: url.searchParams.get('qrToken') }
+      : { ok: false, reason: 'invalid' };
   } catch {
-    return { ok: false, reason: 'invalid' };
+    const relativePath = raw.startsWith('/') ? raw : `/${raw}`;
+    const directId = extractIdFromPath(relativePath);
+    return directId
+      ? { ok: true, tableId: directId, qrToken: null }
+      : { ok: false, reason: 'invalid' };
   }
 }
