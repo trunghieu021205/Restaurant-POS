@@ -12,13 +12,14 @@ exports.getCart = async (req, res) => {
         const table = await resolveTable(tableId);
         if (!table) return res.status(404).json({ message: 'Khong co ban nay' });
 
-        const resolvedTableId = table._id.toString();
+        const resolvedTableId = table._id;
         let cart = await Cart.findOne({ tableId: resolvedTableId }).populate('items.menuItemId');
 
         if (!cart) {
             await Cart.create({ tableId: resolvedTableId, items: [] });
             cart = await Cart.findOne({ tableId: resolvedTableId }).populate('items.menuItemId');
         }
+
 
         res.json(cart);
     } catch (error) {
@@ -33,8 +34,9 @@ exports.addToCart = async (req, res) => {
         const table = await resolveTable(tableId);
         if (!table) return res.status(404).json({ message: 'Khong co ban nay' });
 
-        const resolvedTableId = table._id.toString();
+        const resolvedTableId = table._id;
         const { menuItemId, quantity = 1, note = '' } = req.body;
+
 
         const menuItem = await MenuItem.findById(menuItemId);
         if (!menuItem || !menuItem.isAvailable) {
@@ -47,6 +49,7 @@ exports.addToCart = async (req, res) => {
         }
 
         const existingItemIndex = cart.items.findIndex(item => item.menuItemId.toString() === menuItemId);
+
 
         if (existingItemIndex > -1) {
             cart.items[existingItemIndex].quantity += quantity;
@@ -71,7 +74,7 @@ exports.removeFromCart = async (req, res) => {
         const table = await resolveTable(tableId);
         if (!table) return res.status(404).json({ message: 'Khong co ban nay' });
 
-        const resolvedTableId = table._id.toString();
+        const resolvedTableId = table._id;
         const cart = await Cart.findOne({ tableId: resolvedTableId });
 
         if (!cart) return res.status(404).json({ message: 'Gio hang trong' });
@@ -93,7 +96,7 @@ exports.clearCart = async (req, res) => {
         const table = await resolveTable(tableId);
         if (!table) return res.status(404).json({ message: 'Khong co ban nay' });
 
-        const result = await Cart.findOneAndDelete({ tableId: table._id.toString() });
+        const result = await Cart.findOneAndDelete({ tableId: table._id });
         if (!result) {
             return res.status(404).json({ message: 'Gio hang khong ton tai' });
         }
@@ -111,7 +114,7 @@ exports.updateCartItemNote = async (req, res) => {
         const table = await resolveTable(tableId);
         if (!table) return res.status(404).json({ message: 'Khong co ban nay' });
 
-        const resolvedTableId = table._id.toString();
+        const resolvedTableId = table._id;
         const { note } = req.body;
 
         const cart = await Cart.findOne({ tableId: resolvedTableId });
