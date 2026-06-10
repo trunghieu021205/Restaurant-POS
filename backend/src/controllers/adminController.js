@@ -52,9 +52,13 @@ exports.getStats = async (req, res) => {
             }
         ]);
 
+        // 3. Số đơn hàng chờ xử lý
+        const pendingOrders = await Order.countDocuments({ status: 'pending' });
+
         res.json({
             totalRevenue,
             paidOrders,
+            pendingOrders,
             topItems
         });
     } catch (error) {

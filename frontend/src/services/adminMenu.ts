@@ -55,22 +55,17 @@ export const adminMenuService = {
 
             const rawData = await res.json();
             
-            // Bóc tách dữ liệu gốc của Backend nếu nằm trong object bọc .data
             let targetData = rawData && typeof rawData === 'object' && 'data' in rawData ? rawData.data : rawData;
 
-            // 🌟 BỘ CHUYỂN ĐỔI (MAPPER) KHI NHẬN DATA VỀ FE:
             if (targetData && Array.isArray(targetData.items)) {
                 targetData.items = targetData.items.map((item: any) => {
-                    // 1. Đồng bộ Ảnh: Nếu BE trả về imageUrl, gán nó vào trường image để FE hiển thị được
                     let cleanImage = item.image || item.imageUrl || '';
                     
-                    // Nếu đường dẫn là tương đối cục bộ (ví dụ: uploads/abc.png), tự nối thêm domain backend
                     if (cleanImage && !cleanImage.startsWith('http') && !cleanImage.startsWith('data:') && !cleanImage.startsWith('blob:')) {
                         const domain = API_URL.replace(/\/api$/, '');
                         cleanImage = `${domain}/${cleanImage.replace(/^\/+/, '')}`;
                     }
                     
-                    // 2. Đồng bộ Trạng thái: Phòng trường hợp BE lưu kiểu Boolean thay vì String enum
                     let cleanStatus = item.status;
                     if (item.isAvailable !== undefined) {
                         cleanStatus = item.isAvailable ? 'available' : 'unavailable';
@@ -93,10 +88,10 @@ export const adminMenuService = {
         }
     },
 
-    create: async (data: MenuFormData & { imageFile?: File }): Promise<MenuItem> => {
+    // ✅ ĐÃ THÊM status?: string ĐỂ KHỬ SẠCH LỖI GẠCH ĐỎ TS(2339) KHI CREATE
+    create: async (data: MenuFormData & { imageFile?: File; status?: string }): Promise<MenuItem> => {
         let finalImageUrl = data.image;
 
-        // 🌟 BỘ TỰ ĐỘNG UPLOAD FILE: Nếu phát hiện có file ảnh binary đính kèm từ Form
         if (data.imageFile) {
             try {
                 const formData = new FormData();
@@ -113,7 +108,6 @@ export const adminMenuService = {
 
                 if (!uploadRes.ok) {
                     const errText = await uploadRes.text();
-                    // 🚨 CHẶN LẠI: Ném lỗi trực tiếp ra ngoài nếu upload thất bại
                     throw new Error(`Server từ chối file ảnh: ${errText}`);
                 }
 
@@ -128,7 +122,6 @@ export const adminMenuService = {
                 console.log("📸 [DEBUG] Upload ảnh mới thành công. URL vĩnh viễn:", finalImageUrl);
             } catch (uploadErr: any) {
                 console.error("🚨 Lỗi trong tiến trình upload file ảnh:", uploadErr);
-                // Ngăn chặn tạo món ăn bằng link blob tạm thời
                 throw new Error(uploadErr.message || "Tiến trình tải ảnh lên máy chủ thất bại, dừng tạo món ăn.");
             }
         }
@@ -153,10 +146,10 @@ export const adminMenuService = {
         return res.json();
     },
 
-    update: async (id: string, data: MenuFormData & { imageFile?: File }): Promise<MenuItem> => {
+    // ✅ ĐÃ THÊM status?: string ĐỂ KHỬ SẠCH LỖI GẠCH ĐỎ TS(2339) KHI UPDATE
+    update: async (id: string, data: MenuFormData & { imageFile?: File; status?: string }): Promise<MenuItem> => {
         let finalImageUrl = data.image;
 
-        // 🌟 BỘ TỰ ĐỘNG UPLOAD FILE KHI CẬP NHẬT:
         if (data.imageFile) {
             try {
                 const formData = new FormData();

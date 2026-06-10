@@ -88,7 +88,7 @@ export default function AdminDashboardPage() {
         ) : (
           <>
             {/* Stat Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white p-6 rounded-2xl border border-neutral-100 shadow-sm flex items-center gap-6">
                 <div className="w-14 h-14 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0"><TrendingUp className="w-7 h-7 text-primary-600" /></div>
                 <div>
@@ -101,6 +101,13 @@ export default function AdminDashboardPage() {
                 <div>
                   <p className="text-xs font-semibold text-neutral-400 uppercase">Đơn Hàng Thành Công</p>
                   <h3 className="text-3xl font-bold text-neutral-800 mt-1">{(stats?.paidOrders || 0).toLocaleString('vi-VN')} đơn</h3>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-neutral-100 shadow-sm flex items-center gap-6">
+                <div className="w-14 h-14 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0"><Clock className="w-7 h-7 text-amber-600" /></div>
+                <div>
+                  <p className="text-xs font-semibold text-neutral-400 uppercase">Đơn Đang Chờ</p>
+                  <h3 className="text-3xl font-bold text-neutral-800 mt-1">{(stats?.pendingOrders || 0).toLocaleString('vi-VN')} đơn</h3>
                 </div>
               </div>
             </div>

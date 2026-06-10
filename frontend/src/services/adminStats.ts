@@ -25,6 +25,7 @@ export interface PaymentLog {
 export interface AdminStatsResponse {
     totalRevenue: number;
     paidOrders: number;
+    pendingOrders: number;
     chartData: ChartDataPoint[];
     recentPayments: PaymentLog[];
     topItems: TopMenuItem[];
