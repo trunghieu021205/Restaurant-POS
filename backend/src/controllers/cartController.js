@@ -39,8 +39,18 @@ exports.addToCart = async (req, res) => {
 
 
         const menuItem = await MenuItem.findById(menuItemId);
-        if (!menuItem || !menuItem.isAvailable) {
-            return res.status(400).json({ message: 'Mon an khong ton tai hoac da het' });
+        if (!menuItem) {
+            return res.status(404).json({
+                code: 'MENU_ITEM_NOT_FOUND',
+                message: 'Mon an khong ton tai',
+            });
+        }
+
+        if (!menuItem.isAvailable) {
+            return res.status(409).json({
+                code: 'MENU_ITEM_UNAVAILABLE',
+                message: 'Mon nay da het. Menu se duoc cap nhat lai.',
+            });
         }
 
         let cart = await Cart.findOne({ tableId: resolvedTableId });

@@ -7,7 +7,7 @@ const { resolveTableByIdentifier } = require('../utils/resolveTable');
 require('../models/User');
 const { getIO } = require('../socket');
 
-const OPERATIONAL_STATUSES = ['pending', 'confirmed', 'cooking', 'done', 'cancelled'];
+const OPERATIONAL_STATUSES = ['pending', 'confirmed', 'cooking', 'done', 'delivered', 'cancelled'];
 
 exports.createOrder = async (req, res) => {
     try {
@@ -125,7 +125,8 @@ exports.updateOrderStatus = async (req, res) => {
             pending: ['confirmed', 'cooking', 'cancelled'],
             confirmed: ['cooking', 'cancelled'],
             cooking: ['done', 'cancelled'],
-            done: [],
+            done: ['delivered'],
+            delivered: [],
             cancelled: []
         };
 

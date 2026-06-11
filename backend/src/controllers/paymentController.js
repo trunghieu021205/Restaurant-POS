@@ -46,6 +46,10 @@ exports.processPayment = async (req, res) => {
                 billId: refreshedBill._id,
                 tableId: table._id
             });
+            io.to(`table_${table._id}`).emit('bill_paid', {
+                billId: refreshedBill._id,
+                tableId: table._id
+            });
         } catch (emitError) {
             console.error('Emit bill_paid failed:', emitError);
         }

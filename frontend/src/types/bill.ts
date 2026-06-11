@@ -9,7 +9,7 @@ export interface BillItem {
   price: number;
   quantity: number;
   notes?: string;
-  status?: "pending" | "confirmed" | "cooking" | "done" | "cancelled";
+  status?: "pending" | "confirmed" | "cooking" | "done" | "delivered" | "cancelled";
 }
 
 export interface Bill {

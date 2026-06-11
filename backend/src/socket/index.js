@@ -5,6 +5,12 @@ function initSocket(socketServer) {
   io.on('connection', (socket) => {
     console.log('Client connected');
     socket.on('join-kitchen', () => socket.join('kitchen'));
+    socket.on('join-table', (tableId) => {
+      if (tableId) socket.join(`table_${tableId}`);
+    });
+    socket.on('leave-table', (tableId) => {
+      if (tableId) socket.leave(`table_${tableId}`);
+    });
     socket.on('disconnect', () => console.log('Client disconnected'));
   });
 }

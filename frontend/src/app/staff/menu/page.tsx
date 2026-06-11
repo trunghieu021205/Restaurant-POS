@@ -105,14 +105,14 @@ export default function StaffMenuPage() {
                   key={item.id}
                   className="bg-white rounded-2xl shadow-card border border-neutral-100 p-4 flex flex-col gap-3"
                 >
-                  <div className="min-h-[56px]">
+                  <div className="min-h-14">
                     <p className="font-semibold text-neutral-800 truncate">
                       {item.name}
                     </p>
                     <p className="text-sm text-neutral-500">
                       {typeof item.category === "object"
                         ? item.category.name
-                        : item.category ?? ""}
+                        : (item.category ?? "")}
                     </p>
                   </div>
 

@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Table = require('../models/Table');
+const { getIO } = require('../socket');
 const { resolveTableByIdentifier } = require('../utils/resolveTable');
 const {
     getOpenBillForTable,
@@ -84,6 +85,20 @@ exports.checkoutTable = async (req, res) => {
         await refreshedBill.save();
 
         await Table.findByIdAndUpdate(table._id, { status: 'available' });
+
+        try {
+            const io = getIO();
+            io.to('kitchen').emit('bill_paid', {
+                billId: refreshedBill._id,
+                tableId: table._id
+            });
+            io.to(`table_${table._id}`).emit('bill_paid', {
+                billId: refreshedBill._id,
+                tableId: table._id
+            });
+        } catch (emitError) {
+            console.error('Emit bill_paid failed:', emitError);
+        }
 
         return res.json({
             success: true,

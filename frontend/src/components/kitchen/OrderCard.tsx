@@ -14,14 +14,26 @@ const nextStatus: Record<OrderStatus, OrderStatus | null> = {
   pending: "confirmed",
   confirmed: "cooking",
   cooking: "done",
-  done: null,
+  done: "delivered",
+  delivered: null,
   cancelled: null,
 };
 
 const actionLabels: Partial<Record<OrderStatus, string>> = {
-  pending: "Xác nhận",
+  pending: "Xác nhận đơn",
   confirmed: "Bắt đầu nấu",
   cooking: "Hoàn thành",
+  done: "Đã giao món",
+};
+
+// Màu nút theo trạng thái hiện tại (action sắp thực hiện)
+const actionButtonClass: Partial<Record<OrderStatus, string>> = {
+  pending:
+    "bg-warning-500 hover:bg-warning-600 focus:ring-warning-500/50 text-white",
+  confirmed: "bg-sky-500 hover:bg-sky-600 focus:ring-sky-500/50 text-white",
+  cooking:
+    "bg-primary-500 hover:bg-primary-600 focus:ring-primary-500/50 text-white",
+  done: "bg-success-500 hover:bg-success-600 focus:ring-success-500/50 text-white",
 };
 
 export default function OrderCard({
@@ -58,15 +70,22 @@ export default function OrderCard({
         <OrderStatusBadge status={order.status} />
       </div>
 
-      <ul className="space-y-1.5 flex-1">
+      <ul className="space-y-2 flex-1">
         {order.items.map((item) => (
           <li key={item.id} className="text-sm">
             <div className="flex justify-between gap-2">
               <span className="font-medium text-gray-800">{item.name}</span>
-              <span className="text-gray-600">x{item.quantity}</span>
+              <span className="text-gray-600 shrink-0">x{item.quantity}</span>
             </div>
             {item.notes && (
-              <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>
+              <div className="mt-1 flex items-start gap-1.5 rounded-md bg-sky-50 border-l-2 border-sky-400 px-2 py-1">
+                <span className="mt-px text-sky-500 shrink-0 text-[11px]">
+                  ↳
+                </span>
+                <p className="text-xs text-sky-700 font-medium leading-relaxed">
+                  {item.notes}
+                </p>
+              </div>
             )}
           </li>
         ))}
@@ -76,7 +95,7 @@ export default function OrderCard({
         <button
           onClick={() => onStatusChange(order.id, next)}
           disabled={isUpdating}
-          className="w-full py-2 px-4 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500/50 disabled:opacity-60 disabled:cursor-not-allowed"
+          className={`w-full py-2 px-4 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed ${actionButtonClass[order.status]}`}
         >
           {isUpdating ? "Đang cập nhật..." : actionLabels[order.status]}
         </button>

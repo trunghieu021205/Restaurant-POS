@@ -1,11 +1,9 @@
 // components/admin/menu/MenuToolbar.tsx
 "use client";
 
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Search, Plus, Filter } from "lucide-react";
 import { MenuFilters, Category } from "@/types/menu";
-import { fetchCategories } from "@/services/category";
 
 interface MenuToolbarProps {
   filters: MenuFilters;
@@ -14,6 +12,7 @@ interface MenuToolbarProps {
   onStatusChange: (status: MenuFilters["status"]) => void;
   onAddNew: () => void;
   total?: number;
+  categories?: Category[];
 }
 
 export function MenuToolbar({
@@ -23,20 +22,8 @@ export function MenuToolbar({
   onStatusChange,
   onAddNew,
   total,
+  categories = [],
 }: MenuToolbarProps) {
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const data = await fetchCategories();
-        setCategories(data);
-      } catch (error) {
-        console.error('Failed to load categories:', error);
-      }
-    };
-    loadCategories();
-  }, []);
   return (
     <div className="bg-white rounded-2xl shadow-card border border-neutral-100 p-4 space-y-4">
       {/* Top row: search + add button */}

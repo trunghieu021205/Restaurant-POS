@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useMenu } from "@/hooks/useMenu";
+import { useCategories } from "@/hooks/useCategories";
 import { MenuCard } from "@/components/admin/menu/MenuCard";
 import { MenuForm } from "@/components/admin/menu/MenuForm";
 import { DeleteConfirmDialog } from "@/components/admin/menu/DeleteConfirmDialog";
@@ -35,6 +36,9 @@ export default function AdminMenuPage() {
     isUpdating,
     isDeleting,
   } = useMenu({ limit: 8 });
+
+  // Fetch 1 lần ở đây, pass xuống MenuToolbar và MenuCard
+  const { categories, categoryMap } = useCategories(true);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -109,6 +113,7 @@ export default function AdminMenuPage() {
           onStatusChange={setStatus}
           onAddNew={handleAddNew}
           total={menuData?.total}
+          categories={categories}
         />
 
         <div className="mt-6">
@@ -143,6 +148,7 @@ export default function AdminMenuPage() {
                     item={item}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    categoryMap={categoryMap}
                   />
                 ))}
               </div>

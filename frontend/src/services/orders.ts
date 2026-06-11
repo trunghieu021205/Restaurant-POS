@@ -1,7 +1,13 @@
 import apiClient from "./apiClient";
 import type { CartItem } from "@/types/cart";
 
-export type OrderStatus = "pending" | "confirmed" | "cooking" | "done" | "cancelled";
+export type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "cooking"
+  | "done"
+  | "delivered"
+  | "cancelled";
 
 export interface KitchenOrderItem {
   id: string;

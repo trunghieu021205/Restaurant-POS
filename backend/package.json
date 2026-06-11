@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "seed": "node src/seed.js",
-    "migrate:bills": "node src/migrations/20260610-create-bills-from-active-orders.js"
+    "migrate:bills": "node src/migrations/20260610-create-bills-from-active-orders.js",
+    "migrate:orders-validator": "node src/migrations/20260610-update-order-validator.js"
   },
   "keywords": [],
   "author": "",

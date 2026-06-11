@@ -3,11 +3,11 @@ import type { OrderStatus } from "@/services/orders";
 const statusConfig: Record<OrderStatus, { label: string; className: string }> =
   {
     pending: {
-      label: "Chờ bếp",
+      label: "Chờ xác nhận",
       className: "bg-warning-500/10 text-warning-500 border-warning-500/20",
     },
     confirmed: {
-      label: "Đã xác nhận",
+      label: "Đang chuẩn bị",
       className: "bg-sky-500/10 text-sky-600 border-sky-500/20",
     },
     cooking: {
@@ -17,6 +17,10 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> =
     done: {
       label: "Hoàn thành",
       className: "bg-success-500/10 text-success-500 border-success-500/20",
+    },
+    delivered: {
+      label: "Đã giao món",
+      className: "bg-neutral-500/10 text-neutral-600 border-neutral-500/20",
     },
     cancelled: {
       label: "Đã hủy",
@@ -28,7 +32,7 @@ export default function OrderStatusBadge({ status }: { status: OrderStatus }) {
   const config = statusConfig[status];
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.className}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap border ${config.className}`}
     >
       {config.label}
     </span>

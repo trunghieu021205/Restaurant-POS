@@ -8,9 +8,15 @@ interface MenuCardProps {
   item: MenuItem;
   onEdit: (item: MenuItem) => void;
   onDelete: (item: MenuItem) => void;
+  categoryMap?: Map<string, string>;
 }
 
-export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
+export function MenuCard({
+  item,
+  onEdit,
+  onDelete,
+  categoryMap,
+}: MenuCardProps) {
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -18,8 +24,27 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
     }).format(price);
 
   const hasImage = item.imageUrl && item.imageUrl !== "";
-  const categoryName =
-    typeof item.category === "object" ? item.category.name : item.category;
+
+  // Resolve category name theo thứ tự ưu tiên:
+  // 1. Backend đã populate → category là object có .name
+  // 2. category là string ID → lookup từ categoryMap
+  // 3. categoryId → lookup từ categoryMap
+  // 4. Fallback "Chưa phân loại"
+  const categoryName = (() => {
+    if (
+      item.category &&
+      typeof item.category === "object" &&
+      "name" in item.category
+    ) {
+      return item.category.name;
+    }
+    const id =
+      typeof item.category === "string" ? item.category : item.categoryId;
+    if (id && categoryMap) {
+      return categoryMap.get(id) ?? null;
+    }
+    return null;
+  })();
 
   return (
     <div className="group bg-white rounded-radius-card shadow-card hover:shadow-card-hover transition-all border border-neutral-100 overflow-hidden flex flex-col">
@@ -47,9 +72,7 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
           >
             <Circle
               className={`w-2 h-2 fill-current ${
-                item.isAvailable
-                  ? "text-success-500"
-                  : "text-error-500"
+                item.isAvailable ? "text-success-500" : "text-error-500"
               }`}
             />
             {item.isAvailable ? "Còn món" : "Hết món"}
