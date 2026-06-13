@@ -3,8 +3,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { Search, Plus, Filter } from "lucide-react";
-import { MenuFilters } from "@/types/menu";
-import { MENU_CATEGORIES } from "@/services/menu";
+import { MenuFilters, Category } from "@/types/menu";
 
 interface MenuToolbarProps {
   filters: MenuFilters;
@@ -13,6 +12,7 @@ interface MenuToolbarProps {
   onStatusChange: (status: MenuFilters["status"]) => void;
   onAddNew: () => void;
   total?: number;
+  categories?: Category[];
 }
 
 export function MenuToolbar({
@@ -22,6 +22,7 @@ export function MenuToolbar({
   onStatusChange,
   onAddNew,
   total,
+  categories = [],
 }: MenuToolbarProps) {
   return (
     <div className="bg-white rounded-2xl shadow-card border border-neutral-100 p-4 space-y-4">
@@ -56,9 +57,9 @@ export function MenuToolbar({
           className="px-3 py-1.5 rounded-lg border border-neutral-200 text-sm text-neutral-700 bg-white focus:border-primary-500 outline-none"
         >
           <option value="all">Tất cả danh mục</option>
-          {MENU_CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
             </option>
           ))}
         </select>

@@ -3,22 +3,48 @@
 
 import { MenuItem } from "@/types/menu";
 import { Edit, Trash2, Circle } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 
 interface MenuCardProps {
   item: MenuItem;
   onEdit: (item: MenuItem) => void;
   onDelete: (item: MenuItem) => void;
+  categoryMap?: Map<string, string>;
 }
 
-export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
+export function MenuCard({
+  item,
+  onEdit,
+  onDelete,
+  categoryMap,
+}: MenuCardProps) {
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
     }).format(price);
 
-  const hasImage = item.image && item.image !== "";
+  const hasImage = item.imageUrl && item.imageUrl !== "";
+
+  // Resolve category name theo thứ tự ưu tiên:
+  // 1. Backend đã populate → category là object có .name
+  // 2. category là string ID → lookup từ categoryMap
+  // 3. categoryId → lookup từ categoryMap
+  // 4. Fallback "Chưa phân loại"
+  const categoryName = (() => {
+    if (
+      item.category &&
+      typeof item.category === "object" &&
+      "name" in item.category
+    ) {
+      return item.category.name;
+    }
+    const id =
+      typeof item.category === "string" ? item.category : item.categoryId;
+    if (id && categoryMap) {
+      return categoryMap.get(id) ?? null;
+    }
+    return null;
+  })();
 
   return (
     <div className="group bg-white rounded-radius-card shadow-card hover:shadow-card-hover transition-all border border-neutral-100 overflow-hidden flex flex-col">
@@ -26,7 +52,7 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
       <div className="relative h-44 overflow-hidden bg-neutral-100">
         {hasImage ? (
           <img
-            src={item.image}
+            src={item.imageUrl}
             alt={item.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -39,19 +65,17 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
         <div className="absolute top-3 left-3">
           <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-              item.status === "available"
+              item.isAvailable
                 ? "bg-black/80 text-success-600"
                 : "bg-black/80 text-error-600"
             }`}
           >
             <Circle
               className={`w-2 h-2 fill-current ${
-                item.status === "available"
-                  ? "text-success-500"
-                  : "text-error-500"
+                item.isAvailable ? "text-success-500" : "text-error-500"
               }`}
             />
-            {item.status === "available" ? "Còn món" : "Hết món"}
+            {item.isAvailable ? "Còn món" : "Hết món"}
           </span>
         </div>
         {/* Action buttons - show on hover */}
@@ -91,7 +115,7 @@ export function MenuCard({ item, onEdit, onDelete }: MenuCardProps) {
         </p>
         <div className="flex items-center justify-between mt-auto pt-3 border-t border-neutral-50">
           <span className="text-xs px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded-full">
-            {item.category}
+            {categoryName ?? "Chưa phân loại"}
           </span>
           <span className="font-bold text-primary-600">
             {formatPrice(item.price)}

@@ -15,8 +15,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user, token, setAuth, logout } = useAuthStore();
-  const isLoading = false;
+  const { user, hasHydrated, logout } = useAuthStore();
+  const isLoading = !hasHydrated;
 
   const login = async (email: string, password: string) => {
     // Login is handled by the auth service in the login page

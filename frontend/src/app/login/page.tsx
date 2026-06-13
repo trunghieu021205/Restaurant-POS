@@ -38,7 +38,14 @@ export default function LoginPage() {
     try {
       const response = await authService.login(data);
       setAuth(response.token, response.user);
-      router.push('/');
+      
+      if (response.user && response.user.role === 'admin') {
+        console.log("🎉 Quyền Admin được xác thực thành công. Điều hướng về Dashboard Thống kê...");
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
+
     } catch (error: unknown) {
       if (error instanceof Error) {
         setServerError(error.message);
@@ -94,7 +101,7 @@ export default function LoginPage() {
               label="Email"
               name="email"
               type="email"
-              register={register}
+              register={register as any}
               error={errors.email}
               placeholder="example@email.com"
               autoComplete="email"
@@ -102,9 +109,9 @@ export default function LoginPage() {
 
             <FormInput
               label="Mật khẩu"
-              name="password"
+              name="password" 
               type="password"
-              register={register}
+              register={register as any}
               error={errors.password}
               placeholder="••••••••"
               autoComplete="current-password"

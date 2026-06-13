@@ -1,8 +1,21 @@
 export interface CartItem {
-    id: string;
-    name: string;
-    price: number;
+    menuItemId: string;
     quantity: number;
-    image?: string;
-    description?: string;
+    note?: string;
+    menuItem?: {
+        id: string;
+        name: string;
+        price: number;
+        description?: string;
+        imageUrl?: string;
+        image?: string;
+        category?: string;
+        isAvailable?: boolean;
+    };
+}
+
+export interface Cart {
+    id: string;
+    tableId: string;
+    items: CartItem[];
 }

@@ -1,83 +1,125 @@
-// app/kitchen/page.tsx
 "use client";
-import { useState, useCallback, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
-import { fetchOrders } from "@/services/orders";
-import { Order, OrderStatus } from "@/data/dummyOrders";
+import { useRouter } from "next/navigation";
+import { fetchOrders, updateOrderStatus } from "@/services/orders";
+import type { KitchenOrder, OrderStatus } from "@/services/orders";
 import OrderCard from "@/components/kitchen/OrderCard";
 import OrderFilter from "@/components/kitchen/OrderFilter";
 import KitchenSkeleton from "@/components/kitchen/KitchenSkeleton";
-import { toast } from "@/lib/toast"; // ✅ giờ đây import đúng
+import { toast } from "@/lib/toast";
+import { useAuth } from "@/hooks/useAuth";
+import { hasRole } from "@/lib/roles";
 
 export default function KitchenPage() {
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+  const canAccess = hasRole(user, ["staff", "admin"]);
+
+  useEffect(() => {
+    if (!authLoading && !canAccess) router.push("/");
+  }, [authLoading, canAccess, router]);
 
   const {
-    data: orders,
+    data: orders = [],
     isLoading,
     error,
-  } = useQuery<Order[]>({
-    queryKey: ["orders"],
-    queryFn: fetchOrders,
+  } = useQuery<KitchenOrder[]>({
+    queryKey: ["orders", filter],
+    queryFn: () => fetchOrders(filter),
     refetchInterval: 10000,
+    enabled: canAccess,
   });
 
-  // Toast khi có lỗi fetch
   useEffect(() => {
-    if (error) {
-      toast.error("Không thể tải danh sách đơn hàng");
-    }
+    if (error) toast.error("Không thể tải danh sách đơn hàng");
   }, [error]);
+
+  const mutation = useMutation({
+    mutationFn: ({
+      orderId,
+      status,
+    }: {
+      orderId: string;
+      status: OrderStatus;
+    }) => updateOrderStatus(orderId, status),
+    onMutate: ({ orderId }) => setUpdatingId(orderId),
+    onSuccess: (order) => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({
+        queryKey: ["table-orders", order.tableId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["bill", order.tableId] });
+      toast.success("Đã cập nhật trạng thái đơn");
+    },
+    onError: (e) => {
+      toast.error(
+        e instanceof Error ? e.message : "Cập nhật trạng thái thất bại",
+      );
+    },
+    onSettled: () => setUpdatingId(null),
+  });
 
   const handleStatusChange = useCallback(
     (orderId: string, newStatus: OrderStatus) => {
-      queryClient.setQueryData<Order[]>(["orders"], (old) =>
-        old?.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order,
-        ),
-      );
+      mutation.mutate({ orderId, status: newStatus });
     },
-    [queryClient],
+    [mutation],
   );
 
-  const filteredOrders = orders?.filter(
-    (o) => filter === "all" || o.status === filter,
-  );
+  if (authLoading || !canAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">
-          Bếp - Đơn hàng
-        </h1>
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-3 pt-4 pb-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold text-gray-900">Bếp</h1>
+          {orders.length > 0 && (
+            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              {orders.length} đơn
+            </span>
+          )}
+        </div>
         <OrderFilter selected={filter} onFilterChange={setFilter} />
+      </div>
 
+      <div className="px-3 py-4">
         {isLoading && <KitchenSkeleton />}
 
-        {/* Lỗi vẫn hiển thị text fallback, nhưng toast đã báo */}
-        {error && (
-          <div className="text-center py-12 text-gray-500">
+        {error && !isLoading && (
+          <div className="text-center py-12 text-gray-500 text-sm">
             Không thể tải danh sách đơn hàng.
           </div>
         )}
 
         <AnimatePresence mode="popLayout">
-          {filteredOrders && filteredOrders.length > 0 ? (
-            <div className="grid gap-4 mt-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredOrders.map((order) => (
+          {!isLoading && orders.length > 0 ? (
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {orders.map((order) => (
                 <OrderCard
                   key={order.id}
                   order={order}
                   onStatusChange={handleStatusChange}
+                  isUpdating={updatingId === order.id}
                 />
               ))}
             </div>
           ) : (
             !isLoading && (
               <div className="text-center py-16 text-gray-400">
-                <p className="text-lg">Không có đơn hàng nào.</p>
+                <p className="text-base">Không có đơn hàng nào.</p>
               </div>
             )
           )}
