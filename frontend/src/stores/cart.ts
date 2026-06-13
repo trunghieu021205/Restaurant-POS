@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CartItem, Cart } from '@/types/cart';
+import { CartItem } from '@/types/cart';
 import { getCart, addToCart, removeFromCart, clearCart, updateCartItemNote } from '@/services/cart';
 
 interface CartState {
@@ -13,6 +13,7 @@ interface CartState {
     removeItem: (menuItemId: string) => Promise<void>;
     updateNote: (menuItemId: string, note: string) => Promise<void>;
     clearCart: () => Promise<void>;
+    resetLocalCart: () => void;
     getTotal: () => number;
     toggleExpanded: () => void;
     setExpanded: (expanded: boolean) => void;
@@ -110,6 +111,14 @@ export const useCartStore = create<CartState>()((set, get) => ({
       set({ error: 'Failed to clear cart', isLoading: false });
     }
   },
+
+  resetLocalCart: () => set({
+    tableId: null,
+    items: [],
+    isExpanded: false,
+    isLoading: false,
+    error: null,
+  }),
 
   getTotal: () => {
     const { items } = get();

@@ -88,6 +88,7 @@ export default function Cart() {
     collapseCart,
   } = useCartStore();
   const { openBill } = useBillStore();
+  const billOpen = useBillStore((state) => state.isOpen);
   const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -227,8 +228,8 @@ export default function Cart() {
   return (
     <>
       {/* FAB mobile */}
-      <button
-        className="lg:hidden fixed bottom-6 right-5 bg-primary-500 text-white p-4 rounded-full shadow-lg z-(--z-modal) hover:bg-primary-600 hover:scale-110 transition-all duration-200"
+      {!billOpen && <button
+        className="lg:hidden fixed bottom-6 right-5 bg-primary-500 text-white p-4 rounded-full shadow-lg z-(--z-floating) hover:bg-primary-600 hover:scale-110 transition-all duration-200"
         onClick={() => setMobileOpen(true)}
         aria-label="Mở giỏ hàng"
       >
@@ -238,7 +239,7 @@ export default function Cart() {
             {itemCount > 9 ? "9+" : itemCount}
           </span>
         )}
-      </button>
+      </button>}
 
       {/* Overlay mobile */}
       {mobileOpen && (
@@ -271,6 +272,7 @@ export default function Cart() {
         className={`
           hidden lg:flex fixed top-0 right-0 h-full bg-white shadow-modal
           z-(--z-drawer) flex-col transition-all duration-300
+          ${billOpen ? "pointer-events-none opacity-0" : "opacity-100"}
           ${isExpanded ? "w-75" : "w-16"}
         `}
       >

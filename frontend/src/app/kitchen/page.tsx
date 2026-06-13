@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { io } from "socket.io-client";
 import { fetchOrders, updateOrderStatus } from "@/services/orders";
 import type { KitchenOrder, OrderStatus } from "@/services/orders";
 import OrderCard from "@/components/kitchen/OrderCard";
@@ -12,6 +13,10 @@ import KitchenSkeleton from "@/components/kitchen/KitchenSkeleton";
 import { toast } from "@/lib/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { hasRole } from "@/lib/roles";
+
+const API_ORIGIN = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+).replace(/\/api\/?$/, "");
 
 export default function KitchenPage() {
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
@@ -35,10 +40,28 @@ export default function KitchenPage() {
     refetchInterval: 10000,
     enabled: canAccess,
   });
+  const pendingCount = orders.filter((order) => order.status === "pending").length;
 
   useEffect(() => {
     if (error) toast.error("Không thể tải danh sách đơn hàng");
   }, [error]);
+
+  useEffect(() => {
+    if (!canAccess) return;
+    const socket = io(API_ORIGIN, { transports: ["websocket", "polling"] });
+    const refreshOrders = () =>
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+
+    socket.emit("join-kitchen");
+    socket.on("new_order", refreshOrders);
+    socket.on("order_status_updated", refreshOrders);
+
+    return () => {
+      socket.off("new_order", refreshOrders);
+      socket.off("order_status_updated", refreshOrders);
+      socket.disconnect();
+    };
+  }, [canAccess, queryClient]);
 
   const mutation = useMutation({
     mutationFn: ({
@@ -86,9 +109,9 @@ export default function KitchenPage() {
       <div className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-3 pt-4 pb-3 space-y-3">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold text-gray-900">Bếp</h1>
-          {orders.length > 0 && (
-            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              {orders.length} đơn
+          {pendingCount > 0 && (
+            <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white shadow-sm">
+              {pendingCount} đơn chờ
             </span>
           )}
         </div>

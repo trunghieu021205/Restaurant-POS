@@ -66,6 +66,7 @@
   /* ----- Z-Index ----- */
   --z-header: 100;
   --z-overlay: 200;
+  --z-floating: 250;
   --z-drawer: 300;
   --z-modal: 400;
   --z-toast: 500;

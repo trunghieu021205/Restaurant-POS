@@ -51,7 +51,7 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
     <SheetContext.Provider value={{ onOpenChange }}>
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-9999 flex items-end justify-center sm:items-center">
+          <div className="fixed inset-0 z-(--z-modal) flex items-end justify-center sm:items-center">
             {/* Overlay */}
             <motion.div
               className="fixed inset-0 bg-black/50"
@@ -108,7 +108,7 @@ export function SheetContent({
   return (
     <motion.div
       className={cn(
-        "fixed z-50 bg-background shadow-lg flex flex-col",
+        "fixed z-(--z-modal) bg-background shadow-lg flex flex-col",
         isCenter
           ? "inset-4 m-auto max-w-lg max-h-[90vh] rounded-2xl" // modal giữa
           : side === "bottom" && "inset-x-0 bottom-0 rounded-t-2xl",
