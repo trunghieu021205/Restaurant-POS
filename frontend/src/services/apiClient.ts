@@ -1,71 +1,126 @@
-// services/apiClient.ts
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import useAuthStore from "@/stores/auth";
 
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null; // SSR guard
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
+type AuthStorageState = {
+  state?: {
+    token?: string | null;
+    refreshToken?: string | null;
+    user?: unknown;
+  };
+};
+
+function getAuthStorage(): AuthStorageState | null {
+  if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem('auth-storage'); // Zustand persist key
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.state?.token ?? null;
+    const raw = localStorage.getItem("auth-storage");
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
 
-function getTableSessionToken(tableId?: string): string | null {
-  if (typeof window === 'undefined') return null; // SSR guard
+function getToken(): string | null {
+  return getAuthStorage()?.state?.token ?? null;
+}
 
+function getRefreshToken(): string | null {
+  return getAuthStorage()?.state?.refreshToken ?? null;
+}
+
+function updateStoredTokens(token: string, refreshToken?: string | null) {
+  if (typeof window === "undefined") return;
+  const parsed = getAuthStorage();
+  if (!parsed) return;
+  parsed.state = {
+    ...parsed.state,
+    token,
+    refreshToken: refreshToken ?? parsed.state?.refreshToken ?? null,
+  };
+  localStorage.setItem("auth-storage", JSON.stringify(parsed));
+  localStorage.setItem("auth-token-refreshed-at", String(Date.now()));
+  useAuthStore.getState().setToken(token, refreshToken);
+}
+
+function clearStoredAuth() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("auth-storage");
+  localStorage.setItem("auth-logout-at", String(Date.now()));
+  useAuthStore.getState().logout();
+}
+
+function getTableSessionToken(tableId?: string): string | null {
+  if (typeof window === "undefined" || !tableId) return null;
   try {
-    if (!tableId) return null;
     const sessionKey = `table-session:${tableId}`;
-    return sessionStorage.getItem(sessionKey);
+    return localStorage.getItem(sessionKey) ?? sessionStorage.getItem(sessionKey);
   } catch {
     return null;
   }
+}
+
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (!data?.token) return null;
+        updateStoredTokens(data.token, data.refreshToken);
+        return data.token as string;
+      })
+      .catch(() => null)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+}
+
+function buildHeaders(options: RequestInit, token: string | null) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...((options.headers ?? {}) as Record<string, string>),
+  };
+
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (headers["Content-Type"] === "") delete headers["Content-Type"];
+  return headers;
 }
 
 export default async function apiClient<T>(
   path: string,
   options: RequestInit = {},
-  useTableSession: boolean = false,
-  tableId?: string
+  useTableSession = false,
+  tableId?: string,
 ): Promise<T> {
-  let token: string | null = null;
+  const token = useTableSession ? getTableSessionToken(tableId) : getToken();
+  const request = (nextToken: string | null) =>
+    fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: buildHeaders(options, nextToken),
+    });
 
-  if (useTableSession) {
-    token = getTableSessionToken(tableId);
-  } else {
-    token = getToken();
+  let response = await request(token);
+  if (response.status === 401 && !useTableSession) {
+    const nextToken = await refreshAccessToken();
+    if (nextToken) response = await request(nextToken);
+    else clearStoredAuth();
   }
-
-  // Merge headers — nếu caller truyền Content-Type rỗng thì xóa đi (cho FormData)
-  const baseHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    baseHeaders['Authorization'] = `Bearer ${token}`;
-  }
-
-  const callerHeaders = (options.headers ?? {}) as Record<string, string>;
-
-  // Content-Type: '' là signal để xóa (dùng cho FormData)
-  const mergedHeaders = { ...baseHeaders, ...callerHeaders };
-  if (mergedHeaders['Content-Type'] === '') {
-    delete mergedHeaders['Content-Type'];
-  }
-
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: mergedHeaders,
-  });
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
-    throw new Error(
-      errorBody?.message ?? `API error ${response.status}: ${path}`
-    );
+    throw new Error(errorBody?.message ?? `API error ${response.status}: ${path}`);
   }
 
   return response.json() as Promise<T>;

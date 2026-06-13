@@ -37,7 +37,7 @@ export default function LoginPage() {
     setServerError('');
     try {
       const response = await authService.login(data);
-      setAuth(response.token, response.user);
+      setAuth(response.token, response.user, response.refreshToken);
       
       if (response.user && response.user.role === 'admin') {
         console.log("🎉 Quyền Admin được xác thực thành công. Điều hướng về Dashboard Thống kê...");
