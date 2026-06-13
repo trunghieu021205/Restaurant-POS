@@ -69,6 +69,13 @@
   --z-drawer: 300;
   --z-modal: 400;
   --z-toast: 500;
+
+  --breakpoint-xs: 425px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
 }
 
 /* =============================================

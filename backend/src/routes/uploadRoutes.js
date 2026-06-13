@@ -10,7 +10,7 @@ router.post('/', authMiddleware, requiredRole(['admin']), upload.single('image')
             return res.status(400).json({ message: 'Chọn một file để tải lên' });
         }
 
-        res.status(200).json({ imageUrl: req.file.path });
+        res.status(200).json({ url: req.file.path });
     } catch (err) {
         console.error('Lỗi tải lên:', err);
         res.status(500).json({ message: 'Không thể upload ảnh, vui lòng thử lại!' });

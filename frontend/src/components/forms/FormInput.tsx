@@ -1,19 +1,19 @@
 'use client';
 
-import type { UseFormRegisterReturn } from 'react-hook-form';
+import type { FieldValues, Path, UseFormRegister } from 'react-hook-form';
 import type { FieldError } from 'react-hook-form';
 
-interface FormInputProps {
+interface FormInputProps<T extends FieldValues> {
   label: string;
-  name: string;
+  name: Path<T>;
   type?: string;
-  register: (name: string) => UseFormRegisterReturn;
+  register: UseFormRegister<T>;
   error?: FieldError;
   placeholder?: string;
   autoComplete?: string;
 }
 
-export default function FormInput({
+export default function FormInput<T extends FieldValues>({
   label,
   name,
   type = 'text',
@@ -21,7 +21,7 @@ export default function FormInput({
   error,
   placeholder,
   autoComplete,
-}: FormInputProps) {
+}: FormInputProps<T>) {
   const { ref, ...rest } = register(name);
   return (
     <div>

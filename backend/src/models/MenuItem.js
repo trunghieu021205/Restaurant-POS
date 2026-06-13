@@ -7,7 +7,7 @@ const MenuItemSchema = new mongoose.Schema({
     description: { type: String, default: '' },
     imageUrl: { type: String, default: '' },
     isAvailable: { type: Boolean, required: true, default: true },
-    isToday: { type: Boolean, required: true, default: false }
+    isVisibleToday: { type: Boolean, required: true, default: false }
 }, { timestamps: true });
 
 MenuItemSchema.set('toJSON', {

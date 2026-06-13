@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import { Order } from '@/types';
+import { Order } from '@/types/order';
 
 interface OrdersState {
     orders: Order[];
