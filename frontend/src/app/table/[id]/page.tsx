@@ -1,105 +1,264 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useEffect, use, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import MenuGrid from "@/components/menu/MenuGrid";
 import MenuSkeleton from "@/components/menu/MenuSkeleton";
 import Cart from "@/components/cart/Cart";
-import type { CartItem } from "@/types";
 import useCartStore from "@/stores/cart";
 import useBillStore from "@/stores/bill";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "@/components/ErrorFallback";
 import { BillSheet } from "@/components/bill/BillSheet";
+import { useTodayMenu } from "@/hooks/useTodayMenu";
+import type { ResolvedTable } from "@/services/table";
+import { checkInTableByQr, validateTableSession } from "@/services/qr";
+import { io } from "socket.io-client";
+import { useCategories } from "@/hooks/useCategories";
+import type { Category } from "@/types/menu";
+import MenuCategoryFilter from "./MenuCategoryFilter";
+import { TableOrderTracker } from "@/components/table/TableOrderTracker";
 
-const dummyMenu: CartItem[] = [
-  {
-    id: "1",
-    name: "Phở bò",
-    price: 50000,
-    quantity: 1,
-    image: "/menu/food/pho.jpg",
-    description: "Phở bò tái chín đậm đà",
-  },
-  {
-    id: "2",
-    name: "Bún chả",
-    price: 45000,
-    quantity: 1,
-    image: "/menu/food/buncha.jpg",
-    description: "Bún chả Hà Nội chính gốc",
-  },
-  {
-    id: "3",
-    name: "Cơm tấm",
-    price: 40000,
-    quantity: 1,
-    image: "/menu/food/comtam.jpg",
-    description: "Cơm tấm sườn bì chả",
-  },
-  {
-    id: "4",
-    name: "Gỏi cuốn",
-    price: 35000,
-    quantity: 1,
-    image: "/menu/food/goicuon.jpg",
-    description: "Gỏi cuốn tôm thịt tươi",
-  },
-  {
-    id: "5",
-    name: "Chả giò",
-    price: 30000,
-    quantity: 1,
-    image: "/menu/food/chagio.jpg",
-    description: "Chả giò rế giòn tan",
-  },
-  {
-    id: "6",
-    name: "Bánh mì",
-    price: 20000,
-    quantity: 1,
-    image: "/menu/food/banhmi.jpg",
-    description: "Bánh mì thịt nướng đặc biệt",
-  },
-];
+const API_ORIGIN = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+).replace(/\/api\/?$/, "");
 
 type Params = Promise<{ id: string }>;
 
 export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
-  const [loading, setLoading] = useState(true);
-  const [menu, setMenu] = useState<CartItem[]>([]);
+  const searchParams = useSearchParams();
+  const qrToken = searchParams.get("qrToken");
   const { isOpen: billOpen, closeBill, setTableId } = useBillStore();
+  const { fetchCart, collapseCart } = useCartStore();
   const isExpanded = useCartStore((state) => state.isExpanded);
 
-  useEffect(() => {
-    setTableId(id);
-    return () => setTableId(null);
-  }, [id, setTableId]);
+  const { menuItems, isLoading, isError, error, refetch } = useTodayMenu();
+
+  const { categories } = useCategories();
+  const [filteredItems, setFilteredItems] = useState<typeof menuItems | null>(
+    null,
+  );
+  const [tableOk, setTableOk] = useState<boolean | null>(null);
+  const [accessDenied, setAccessDenied] = useState<string | null>(null);
+  const [table, setTable] = useState<ResolvedTable | null>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [checkingIn, setCheckingIn] = useState(false);
+  const tableSessionKey = `table-session:${id}`;
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
+    let cancelled = false;
 
+    const run = async () => {
+      let resolvedTable: ResolvedTable | null = null;
+      let denialMessage = "Vui lòng quét QR hợp lệ để truy cập bàn.";
+      try {
+        const existingSession =
+          typeof window !== "undefined"
+            ? sessionStorage.getItem(tableSessionKey)
+            : null;
+
+        if (!qrToken && existingSession) {
+          const validated = await validateTableSession(id, existingSession);
+          resolvedTable = validated.table;
+        }
+      } catch (e) {
+        console.error("table access validation failed:", e);
+        denialMessage = e instanceof Error ? e.message : denialMessage;
+        resolvedTable = null;
+      }
+
+      if (cancelled) return;
+
+      if (!resolvedTable) {
+        setTableOk(false);
+        setAccessDenied(qrToken ? null : denialMessage);
+        setTable(null);
+        setTableId(null);
+        return;
+      }
+
+      setTableOk(true);
+      setAccessDenied(null);
+      setTable(resolvedTable);
+      setTableId(resolvedTable.id);
+      fetchCart(resolvedTable.id);
+      collapseCart();
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+      setTableId(null);
+    };
+  }, [id, qrToken, tableSessionKey, setTableId, fetchCart, collapseCart]);
+
+  // Lắng nghe sự kiện payment_completed để tự redirect về home
   useEffect(() => {
-    setMenu(dummyMenu);
-  }, []);
+    if (!tableOk) return;
 
-  const rightPadding = isExpanded ? "lg:pr-80" : "lg:pr-20"; // 320px hoặc 80px
-  if (loading) return <MenuSkeleton />;
+    const socket = io(API_ORIGIN);
+    socket.emit("join-table", id);
+
+    socket.on("payment_completed", () => {
+      sessionStorage.removeItem(`table-session:${id}`);
+      window.location.href = "/";
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [id, tableOk]);
+
+  const handleCheckIn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!qrToken) return;
+
+    setCheckingIn(true);
+    setAccessDenied(null);
+    try {
+      const checkIn = await checkInTableByQr(id, qrToken, {
+        customerName,
+        customerPhone,
+      });
+      sessionStorage.setItem(tableSessionKey, checkIn.sessionToken);
+      sessionStorage.setItem(
+        `table-session:${checkIn.table.id}`,
+        checkIn.sessionToken,
+      );
+      setTableOk(true);
+      setTable(checkIn.table);
+      setTableId(checkIn.table.id);
+      fetchCart(checkIn.table.id);
+      collapseCart();
+    } catch (e) {
+      setAccessDenied(e instanceof Error ? e.message : "Check-in that bai");
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  if (isLoading || tableOk === null) return <MenuSkeleton />;
+
+  if (tableOk === false && qrToken) {
+    return (
+      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4">
+        <form
+          onSubmit={handleCheckIn}
+          className="space-y-4 rounded-card border border-neutral-200 bg-white p-6 shadow-card"
+        >
+          <div>
+            <p className="text-sm font-medium text-neutral-500">Bàn {id}</p>
+            <h1 className="text-2xl font-bold text-neutral-900">
+              Thông tin khách hàng
+            </h1>
+          </div>
+          {accessDenied && (
+            <p className="rounded-btn bg-error-500/10 px-3 py-2 text-sm text-error-600">
+              {accessDenied}
+            </p>
+          )}
+          <label className="block text-sm font-medium text-neutral-700">
+            Họ tên
+            <input
+              value={customerName}
+              onChange={(event) => setCustomerName(event.target.value)}
+              className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 outline-none focus:border-primary-500"
+              placeholder="Nguyễn Văn A"
+            />
+          </label>
+          <label className="block text-sm font-medium text-neutral-700">
+            Số điện thoại
+            <input
+              value={customerPhone}
+              onChange={(event) => setCustomerPhone(event.target.value)}
+              className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 outline-none focus:border-primary-500"
+              placeholder="0901234567"
+              required
+            />
+          </label>
+          <button
+            disabled={checkingIn}
+            className="w-full rounded-btn bg-primary-600 px-4 py-2 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {checkingIn ? "Đang check-in..." : "Tiếp tục vào bàn"}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  if (tableOk === false) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="font-medium text-red-500">
+          {accessDenied ?? "Không có bàn này"}
+        </p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="font-medium text-red-500">
+          Không thể tải menu. Vui lòng thử lại.
+        </p>
+        <p className="text-sm text-neutral-400">
+          {error instanceof Error ? error.message : "Lỗi không xác định"}
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="rounded-card bg-primary px-4 py-2 text-sm text-white transition-opacity hover:opacity-90"
+        >
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <div className="min-h-[70vh] flex flex-col lg:flex-row">
+      <div className="min-h-[70vh]">
         <div
-          className={`flex-1 p-4 ${rightPadding} transition-all duration-300`}
+          className={`transition-all duration-300 ${
+            isExpanded ? "lg:pr-75" : "lg:pr-16"
+          } lg:pl-16`}
         >
-          <h1 className="text-2xl md:text-3xl font-bold text-neutral-800 mb-6">
-            Bàn số {id}
+          <h1 className="mb-4 text-xl font-bold text-neutral-800 sm:mb-6 sm:text-2xl md:text-3xl">
+            Bàn số {table?.number ?? id}
           </h1>
-          <MenuGrid items={menu} />
+
+          {menuItems.length === 0 ? (
+            <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 text-neutral-400">
+              <p className="text-lg font-medium">Chưa có món hôm nay</p>
+              <p className="text-sm">
+                Vui lòng liên hệ nhân viên để được hỗ trợ.
+              </p>
+            </div>
+          ) : (
+            <>
+              <MenuCategoryFilter
+                categories={categories}
+                items={menuItems}
+                defaultCategoryName="Món chính"
+                onFiltered={(filtered) => setFilteredItems(filtered)}
+              />
+              <MenuGrid items={filteredItems ?? menuItems} />
+            </>
+          )}
         </div>
+
         <Cart />
-        <BillSheet tableId={id} open={billOpen} onClose={closeBill} />
+        {table && <TableOrderTracker tableId={table.id} />}
+        <BillSheet
+          tableId={table?.id ?? id}
+          tableNumber={table?.number}
+          open={billOpen}
+          onClose={closeBill}
+        />
       </div>
     </ErrorBoundary>
   );

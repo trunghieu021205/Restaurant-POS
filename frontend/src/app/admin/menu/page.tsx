@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useMenu } from "@/hooks/useMenu";
+import { useCategories } from "@/hooks/useCategories";
 import { MenuCard } from "@/components/admin/menu/MenuCard";
 import { MenuForm } from "@/components/admin/menu/MenuForm";
 import { DeleteConfirmDialog } from "@/components/admin/menu/DeleteConfirmDialog";
@@ -13,6 +14,7 @@ import { MenuItem, MenuFormData } from "@/types/menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { AlertCircle, UtensilsCrossed } from "lucide-react";
+import { hasRole } from "@/lib/roles";
 
 export default function AdminMenuPage() {
   const router = useRouter();
@@ -35,12 +37,15 @@ export default function AdminMenuPage() {
     isDeleting,
   } = useMenu({ limit: 8 });
 
+  // Fetch 1 lần ở đây, pass xuống MenuToolbar và MenuCard
+  const { categories, categoryMap } = useCategories(true);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<MenuItem | null>(null);
 
-  if (!authLoading && (!user || user.role !== "admin")) {
+  if (!authLoading && !hasRole(user, ["admin"])) {
     router.push("/");
     return null;
   }
@@ -108,6 +113,7 @@ export default function AdminMenuPage() {
           onStatusChange={setStatus}
           onAddNew={handleAddNew}
           total={menuData?.total}
+          categories={categories}
         />
 
         <div className="mt-6">
@@ -130,7 +136,7 @@ export default function AdminMenuPage() {
               <div className="text-6xl mb-4">🍽️</div>
               <p className="text-neutral-500 text-lg">Chưa có món ăn nào</p>
               <p className="text-sm text-neutral-400 mt-1">
-                Nhấn "Thêm món mới" để bắt đầu
+                Nhấn &quot;Thêm món mới&quot; để bắt đầu
               </p>
             </div>
           ) : (
@@ -142,6 +148,7 @@ export default function AdminMenuPage() {
                     item={item}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    categoryMap={categoryMap}
                   />
                 ))}
               </div>

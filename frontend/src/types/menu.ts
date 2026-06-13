@@ -5,23 +5,26 @@ export interface MenuItem {
   price: number;
   categoryId?: string;
   description: string;
-  image?: string;
-  category?: string;
+  imageUrl?: string;
+  category?: string | Category;
   isAvailable: boolean;
-  isToday?: boolean;
+  isVisibleToday?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
+
+// Backwards compat (if UI/admin still sends old field)
+// type MenuItemLegacy = { isToday?: boolean };
+
 
 export interface MenuFormData {
   name: string;
   price: number;
   categoryId?: string;
   description: string;
-  image?: string;
-  category?: string;
+  imageUrl?: string;
   isAvailable: boolean;
-  isToday: boolean;
+  isVisibleToday: boolean;
 }
 
 export interface MenuFilters {
@@ -30,4 +33,15 @@ export interface MenuFilters {
   status: 'all' | 'available' | 'unavailable';
   page: number;
   limit: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  image?: string;
+  isActive: boolean;
+  orderIndex: number;
+  createdAt?: string;
+  updatedAt?: string;
 }

@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { 
-    createCategory, 
-    getCategories, 
-    getCategoryById, 
-    updateCategory, 
-    deleteCategory 
+const {
+    createCategory,
+    getCategories,
+    getCategoryById,
+    updateCategory,
+    deleteCategory
 } = require('../controllers/categoriesController');
 const authMiddleware = require('../middleware/authMiddleware');
 const requiredRole = require('../middleware/roleMiddleware');

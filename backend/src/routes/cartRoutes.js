@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
-const { getCart, addToCart, removeFromCart, clearCart } = require('../controllers/cartController');
+const { getCart, addToCart, removeFromCart, clearCart, updateCartItemNote } = require('../controllers/cartController');
 
-router.get('/:tableId', authMiddleware, getCart);
-router.post('/:tableId/add', authMiddleware, addToCart);
-router.delete('/:tableId/remove/:menuItemId', authMiddleware, removeFromCart);
-router.delete('/:tableId/clear', authMiddleware, clearCart);
+// Khách hàng tại bàn không cần auth
+router.get('/:tableId', getCart);
+router.post('/:tableId/add', addToCart);
+router.delete('/:tableId/remove/:menuItemId', removeFromCart);
+router.delete('/:tableId/clear', clearCart);
+router.patch('/:tableId/item/:menuItemId/note', updateCartItemNote);
 
 module.exports = router;
