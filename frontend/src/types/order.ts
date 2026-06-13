@@ -12,7 +12,8 @@ export interface Order {
     tableId: string;
     user?: string;
     items: OrderItem[];
-    status: 'pending' | 'cooking' | 'done' | 'paid' | 'cancelled';
+    billId?: string;
+    status: 'pending' | 'confirmed' | 'delivered' | 'cancelled';
     totalAmount: number;
     subTotal: number;
     createdAt?: string;

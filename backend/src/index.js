@@ -50,9 +50,20 @@ app.use('/api/upload', uploadRoutes);
 const qrRoutes = require('./routes/qrRoutes');
 app.use('/api/qr', qrRoutes);
 
+const tableRoutes = require('./routes/tableRoutes');
+app.use('/api/tables', tableRoutes);
+
 const categoriesRoutes = require('./routes/categoriesRoutes');
 app.use('/api/categories', categoriesRoutes);
 
+const billRoutes = require('./routes/billRoutes');
+app.use('/api/bills', billRoutes);
+
+app.get('/', (req, res) => res.send('API running'));
+
+
+const { initSocket } = require('./socket');
+initSocket(io);
 // --- KHU VỰC CÁC TUYẾN ĐƯỜNG ADMIN ĐỘC LẬP (ĐÃ THÊM MỚI BẢO VỆ CONFLICT) ---
 const categoriesAdminRoutes = require('./routes/categoriesAdminRoutes');
 app.use('/api/admin/categories', categoriesAdminRoutes);
@@ -71,6 +82,14 @@ if (socketModule && typeof socketModule.initSocket === 'function') {
   socketModule.initSocket(io);
 } else if (typeof socketModule === 'function') {
   socketModule(io);
+}
+
+// Start cron jobs
+try {
+  const { startCronJobs } = require('./utils/cron');
+  startCronJobs();
+} catch (e) {
+  console.error('Failed to start cron jobs:', e);
 }
 
 // Thêm kiểm tra socket ready
@@ -100,4 +119,5 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
+server.listen(PORT, () => console.log(`Server running on ${PORT}`));
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

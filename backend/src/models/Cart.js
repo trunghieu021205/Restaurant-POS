@@ -7,7 +7,12 @@ const cartItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const cartSchema = new mongoose.Schema({
-    tableId: { type: mongoose.Schema.Types.ObjectId, ref: 'Table', required: true, unique: true },
+    tableId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Table',
+        required: true,
+        unique: true,
+    },
     items: [cartItemSchema]
 }, { timestamps: true });
 

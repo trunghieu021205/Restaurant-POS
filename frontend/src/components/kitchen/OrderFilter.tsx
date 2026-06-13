@@ -1,6 +1,5 @@
-// components/kitchen/OrderFilter.tsx
 "use client";
-import { OrderStatus } from "@/data/dummyOrders";
+import type { OrderStatus } from "@/services/orders";
 
 interface OrderFilterProps {
   selected: OrderStatus | "all";
@@ -9,9 +8,9 @@ interface OrderFilterProps {
 
 const tabs: { value: OrderStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
-  { value: "new", label: "Mới" },
-  { value: "preparing", label: "Đang chế biến" },
-  { value: "done", label: "Hoàn thành" },
+  { value: "pending", label: "Mới" },
+  { value: "confirmed", label: "Đang làm" },
+  { value: "delivered", label: "Đã giao" },
 ];
 
 export default function OrderFilter({
@@ -19,12 +18,12 @@ export default function OrderFilter({
   onFilterChange,
 }: OrderFilterProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2">
+    <div className="grid grid-cols-4 gap-1.5 w-full">
       {tabs.map((tab) => (
         <button
           key={tab.value}
           onClick={() => onFilterChange(tab.value)}
-          className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-colors ${
+          className={`py-2 text-xs font-medium rounded-lg whitespace-nowrap transition-colors min-h-9 ${
             selected === tab.value
               ? "bg-primary-500 text-white shadow-sm"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"

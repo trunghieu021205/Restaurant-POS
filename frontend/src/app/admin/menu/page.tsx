@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { useMenu } from "@/hooks/useMenu";
+import { useCategories } from "@/hooks/useCategories";
 import { useState, useEffect, useCallback } from "react";
 import { MenuCard } from "@/components/admin/menu/MenuCard";
 import { MenuForm } from "@/components/admin/menu/MenuForm";
@@ -11,6 +14,7 @@ import { MenuItem, MenuFormData, MenuFilters } from "@/types/menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { AlertCircle, UtensilsCrossed } from "lucide-react";
+import { hasRole } from "@/lib/roles";
 import { toast } from "@/lib/toast";
 
 import { adminMenuService, PaginatedMenuResponse } from "@/services/adminMenu";
@@ -37,11 +41,18 @@ export default function AdminMenuPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Fetch 1 lần ở đây, pass xuống MenuToolbar và MenuCard
+  const { categories, categoryMap } = useCategories(true);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<MenuItem | null>(null);
 
+  if (!authLoading && !hasRole(user, ["admin"])) {
+    router.push("/");
+    return null;
+  }
   const fetchCategories = async () => {
     try {
       const data = await adminCategoriesService.getAll();
@@ -172,6 +183,7 @@ export default function AdminMenuPage() {
           onStatusChange={(status: any) => setFilters(prev => ({ ...prev, status, page: 1 }))}
           onAddNew={handleAddNew}
           total={menuData?.total}
+          categories={categories}
         />
 
         <div className="mt-6">
@@ -191,6 +203,9 @@ export default function AdminMenuPage() {
             <div className="bg-white rounded-2xl p-12 text-center border border-neutral-100 shadow-card">
               <div className="text-6xl mb-4">🍽️</div>
               <p className="text-neutral-500 text-lg">Chưa có món ăn nào</p>
+              <p className="text-sm text-neutral-400 mt-1">
+                Nhấn &quot;Thêm món mới&quot; để bắt đầu
+              </p>
               <p className="text-sm text-neutral-400 mt-1">Nhấn "Thêm món mới" để bắt đầu</p>
             </div>
           ) : (
@@ -202,6 +217,7 @@ export default function AdminMenuPage() {
                     item={item}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    categoryMap={categoryMap}
                   />
                 ))}
               </div>

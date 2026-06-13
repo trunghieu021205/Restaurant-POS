@@ -1,33 +1,39 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { checkoutTable } from '@/services/bill';
-import { toast } from '@/lib/toast';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { checkoutTable } from "@/services/bill";
+import type { PaymentMethod } from "@/types/bill";
+import { toast } from "@/lib/toast";
 
 export function useCheckout(tableId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => checkoutTable(tableId),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['bill', tableId] });
-      const previousBill = queryClient.getQueryData(['bill', tableId]);
-      // Optimistic: set bill rỗng
-      queryClient.setQueryData(['bill', tableId], {
-        tableId,
-        items: [],
-        totalAmount: 0,
-      });
-      return { previousBill };
+    mutationFn: (paymentMethod: PaymentMethod) =>
+      checkoutTable(tableId, paymentMethod),
+    onError: (err) => {
+      const message = err instanceof Error ? err.message : "Thanh toán thất bại";
+      toast.error(message);
     },
-    onError: (_err, _vars, context) => {
-      if (context?.previousBill) {
-        queryClient.setQueryData(['bill', tableId], context.previousBill);
+    onSuccess: ({ bill }) => {
+      queryClient.setQueryData(["bill", tableId], bill);
+      queryClient.invalidateQueries({ queryKey: ["bill", tableId] });
+      queryClient.invalidateQueries({ queryKey: ["table-orders", tableId] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+
+      const billStatus = bill.status;
+      const paymentMethod = bill.paymentMethod;
+
+      if (billStatus === "paid" && typeof window !== "undefined") {
+        sessionStorage.removeItem(`table-session:${tableId}`);
       }
-      toast.error('Thanh toán thất bại');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bill', tableId] });
-      toast.success('Thanh toán thành công!');
-      // Nếu bạn dùng CartContext, có thể gọi clearCart() ở đây
+
+      if (billStatus !== "paid" && paymentMethod === "cash") {
+        toast.success("Đã gửi yêu cầu thanh toán đến nhân viên");
+      } else if (billStatus === "paid") {
+        toast.success("Thanh toán thành công!");
+      } else {
+        toast.success("Đã cập nhật thanh toán");
+      }
     },
   });
 }
