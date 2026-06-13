@@ -16,7 +16,7 @@ interface TableOrderTrackerProps {
   tableId: string;
 }
 
-const visibleStatuses = new Set(["pending", "confirmed", "cooking", "done"]);
+const visibleStatuses = new Set(["pending", "confirmed"]);
 
 export function TableOrderTracker({ tableId }: TableOrderTrackerProps) {
   const [mobileOpen, setMobileOpen] = useState(false);

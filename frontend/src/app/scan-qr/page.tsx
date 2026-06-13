@@ -6,7 +6,7 @@ import { Camera, Keyboard, Loader2, Upload, X } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 
 import { parseTableQrValue } from "@/lib/tableQr";
-import { checkInTableByQr } from "@/services/qr";
+import { resolveTable } from "@/services/table";
 
 export default function ScanQRPage() {
   const router = useRouter();
@@ -57,14 +57,24 @@ export default function ScanQRPage() {
           return;
         }
 
-        const { table, sessionToken } = await checkInTableByQr(
-          parsed.tableId,
-          parsed.qrToken,
-        );
-        sessionStorage.setItem(`table-session:${table.id}`, sessionToken);
-        sessionStorage.setItem(`table-session:${parsed.tableId}`, sessionToken);
+        const table = await resolveTable(parsed.tableId);
 
-        router.push(`/table/${encodeURIComponent(parsed.tableId)}`);
+        if (!table) {
+          setScanError("Không tìm thấy bàn này.");
+          setScanStatus(null);
+          return;
+        }
+
+        if (table.status === "occupied") {
+          setScanError(
+            `Bàn số ${table.number} đang được sử dụng. Vui lòng quét bàn khác hoặc liên hệ nhân viên.`
+          );
+          setScanStatus(null);
+          return;
+        }
+
+        const href = `/table/${encodeURIComponent(parsed.tableId)}?qrToken=${encodeURIComponent(parsed.qrToken)}`;
+        router.push(href);
       } catch (error) {
         console.error("QR validation failed:", error);
         setScanError("Không thể kiểm tra bàn. Vui lòng thử lại.");

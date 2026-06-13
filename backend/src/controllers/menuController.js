@@ -47,7 +47,7 @@ exports.getMenu = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching menu:', error);
-    return res.status(500).json({ message: 'Failed to fetch menu' });
+    return res.status(500).json({ message: 'Không thể tải danh sách món ăn' });
   }
 };
 
@@ -61,7 +61,7 @@ exports.getTodayMenu = async (req, res) => {
     res.json(items);
   } catch (error) {
     console.error("Error fetching today's menu:", error);
-    return res.status(500).json({ message: "Failed to fetch today's menu" });
+    return res.status(500).json({ message: "Không thể tải danh sách món ăn hôm nay" });
   }
 };
 
@@ -71,13 +71,13 @@ exports.getMenuItem = async (req, res) => {
     const item = await MenuItem.findById(req.params.id).populate('categoryId');
 
     if (!item) {
-      return res.status(404).json({ message: 'Menu item not found' });
+      return res.status(404).json({ message: 'Món ăn không tồn tại' });
     }
 
     res.json(item);
   } catch (error) {
     console.error('Error fetching menu item:', error);
-    return res.status(500).json({ message: 'Failed to fetch menu item' });
+    return res.status(500).json({ message: 'Không thể tải thông tin món ăn' });
   }
 };
 
@@ -90,7 +90,7 @@ exports.createMenuItem = async (req, res) => {
     res.status(201).json(populatedItem);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Failed to create menu item' });
+    return res.status(500).json({ message: 'Không thể tạo món ăn mới' });
   }
 };
 
@@ -99,12 +99,12 @@ exports.updateMenuItem = async (req, res) => {
   try {
     const item = await MenuItem.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('categoryId');
 
-    if (!item) return res.status(404).json({ message: 'Menu item not found' });
+    if (!item) return res.status(404).json({ message: 'Món ăn không tồn tại' });
 
     res.json(item);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Failed to update menu item' });
+    return res.status(500).json({ message: 'Không thể cập nhật thông tin món ăn' });
   }
 };
 
@@ -113,12 +113,12 @@ exports.deleteMenuItem = async (req, res) => {
   try {
     const item = await MenuItem.findByIdAndDelete(req.params.id);
 
-    if (!item) return res.status(404).json({ message: 'Menu item not found' });
+    if (!item) return res.status(404).json({ message: 'Món ăn không tồn tại' });
 
     res.json({ message: 'Deleted' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Failed to delete menu item' });
+    return res.status(500).json({ message: 'Không thể xóa món ăn' });
   }
 };
 
@@ -176,7 +176,7 @@ exports.setTodayMenu = async (req, res) => {
     });
   } catch (err) {
     console.error('setTodayMenu error:', err);
-    res.status(500).json({ message: 'Failed to update today menu' });
+    return res.status(500).json({ message: 'Không thể cập nhật danh sách món ăn hôm nay' });
   }
 };
 

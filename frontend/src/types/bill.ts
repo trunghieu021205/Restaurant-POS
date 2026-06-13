@@ -1,4 +1,4 @@
-export type PaymentMethod = "cash" | "credit_card" | "e_wallet";
+export type PaymentMethod = "cash" | "online_qr";
 export type BillStatus = "open" | "paid" | "cancelled";
 
 export interface BillItem {
@@ -9,7 +9,7 @@ export interface BillItem {
   price: number;
   quantity: number;
   notes?: string;
-  status?: "pending" | "confirmed" | "cooking" | "done" | "delivered" | "cancelled";
+  status?: "pending" | "confirmed" | "delivered" | "cancelled";
 }
 
 export interface Bill {
@@ -23,6 +23,15 @@ export interface Bill {
   vatAmount: number;
   discount: number;
   totalAmount: number;
+  customerName?: string;
+  customerPhone?: string;
   paymentMethod?: PaymentMethod;
   paidAt?: string;
+}
+
+export interface BillResponse extends Bill {
+  id: string; 
+  orders: unknown[]; 
+  createdAt?: string;
+  updatedAt?: string;
 }

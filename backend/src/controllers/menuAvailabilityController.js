@@ -7,7 +7,7 @@ exports.setMenuAvailability = async (req, res) => {
     const { isAvailable } = req.body;
 
     if (typeof isAvailable !== 'boolean') {
-      return res.status(400).json({ message: 'isAvailable must be boolean' });
+      return res.status(400).json({ message: 'isAvailable phải là giá trị kiểu boolean' });
     }
 
     const updated = await MenuItem.findByIdAndUpdate(
@@ -17,13 +17,13 @@ exports.setMenuAvailability = async (req, res) => {
     ).populate('categoryId');
 
     if (!updated) {
-      return res.status(404).json({ message: 'Menu item not found' });
+      return res.status(404).json({ message: 'Món ăn không tồn tại' });
     }
 
     return res.json(updated);
   } catch (error) {
     console.error('setMenuAvailability error:', error);
-    return res.status(500).json({ message: 'Failed to update availability' });
+    return res.status(500).json({ message: 'Không thể cập nhật trạng thái khả dụng' });
   }
 };
 

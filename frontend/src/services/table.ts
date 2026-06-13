@@ -4,7 +4,10 @@ export interface ResolvedTable {
   id: string;
   number: number;
   capacity: number;
-  status: 'available' | 'occupied';
+  status: 'available' | 'occupied' | 'reserved' | 'maintenance';
+  customerName?: string;
+  customerPhone?: string;
+  checkedInAt?: string;
 }
 
 interface TableExistsResponse {

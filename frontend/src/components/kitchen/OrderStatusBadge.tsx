@@ -10,17 +10,9 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> =
       label: "Đang chuẩn bị",
       className: "bg-sky-500/10 text-sky-600 border-sky-500/20",
     },
-    cooking: {
-      label: "Đang chế biến",
-      className: "bg-primary-500/10 text-primary-500 border-primary-500/20",
-    },
-    done: {
-      label: "Hoàn thành",
-      className: "bg-success-500/10 text-success-500 border-success-500/20",
-    },
     delivered: {
       label: "Đã giao món",
-      className: "bg-neutral-500/10 text-neutral-600 border-neutral-500/20",
+      className: "bg-success-500/10 text-success-500 border-success-500/20",
     },
     cancelled: {
       label: "Đã hủy",
@@ -28,8 +20,22 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> =
     },
   };
 
-export default function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  const config = statusConfig[status];
+const fallback = {
+  label: "Trạng thái không xác định",
+  className: "bg-gray-500/10 text-gray-600 border-gray-500/20",
+};
+
+export default function OrderStatusBadge({
+  status,
+}: {
+  // Trong thực tế có thể nhận status không thuộc union (API/DB mapping)
+  status: OrderStatus | string | undefined | null;
+}) {
+  const config =
+    status && statusConfig[status as OrderStatus]
+      ? statusConfig[status as OrderStatus]
+      : fallback;
+
   return (
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap border ${config.className}`}

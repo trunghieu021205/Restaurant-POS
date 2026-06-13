@@ -33,6 +33,21 @@ async function getOrCreateOpenBill(tableId) {
     }
 }
 
+async function getOrCreateOpenBillForTable(table, customer = {}) {
+    const bill = await getOrCreateOpenBill(table._id);
+    const nextCustomerName = customer.customerName || table.customerName;
+    const nextCustomerPhone = customer.customerPhone || table.customerPhone;
+
+    if ((nextCustomerName && bill.customerName !== nextCustomerName)
+        || (nextCustomerPhone && bill.customerPhone !== nextCustomerPhone)) {
+        bill.customerName = nextCustomerName;
+        bill.customerPhone = nextCustomerPhone;
+        await bill.save();
+    }
+
+    return bill;
+}
+
 async function refreshBillTotals(billId) {
     const bill = await Bill.findById(billId);
     if (!bill) return null;
@@ -56,7 +71,7 @@ async function buildBillResponse(bill, table) {
                 id: `${order._id}-${item._id}`,
                 orderId: order._id,
                 orderNumber: order.orderNumber,
-                name: item.menuItemId ? item.menuItemId.name : 'Mon da xoa',
+                name: item.menuItemId ? item.menuItemId.name : 'Món đã xoá',
                 quantity: item.quantity,
                 price: item.price,
                 notes: item.note,
@@ -77,6 +92,8 @@ async function buildBillResponse(bill, table) {
         vatAmount: bill.tax,
         discount: bill.discount,
         totalAmount: bill.totalAmount,
+        customerName: bill.customerName,
+        customerPhone: bill.customerPhone,
         paymentMethod: bill.paymentMethod,
         paidAt: bill.paidAt,
         createdAt: bill.createdAt,
@@ -89,6 +106,7 @@ module.exports = {
     calculateTotalsFromOrders,
     getOpenBillForTable,
     getOrCreateOpenBill,
+    getOrCreateOpenBillForTable,
     refreshBillTotals,
     buildBillResponse
 };

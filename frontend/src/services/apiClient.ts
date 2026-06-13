@@ -14,11 +14,31 @@ function getToken(): string | null {
   }
 }
 
+function getTableSessionToken(tableId?: string): string | null {
+  if (typeof window === 'undefined') return null; // SSR guard
+
+  try {
+    if (!tableId) return null;
+    const sessionKey = `table-session:${tableId}`;
+    return sessionStorage.getItem(sessionKey);
+  } catch {
+    return null;
+  }
+}
+
 export default async function apiClient<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  useTableSession: boolean = false,
+  tableId?: string
 ): Promise<T> {
-  const token = getToken();
+  let token: string | null = null;
+
+  if (useTableSession) {
+    token = getTableSessionToken(tableId);
+  } else {
+    token = getToken();
+  }
 
   // Merge headers — nếu caller truyền Content-Type rỗng thì xóa đi (cho FormData)
   const baseHeaders: Record<string, string> = {

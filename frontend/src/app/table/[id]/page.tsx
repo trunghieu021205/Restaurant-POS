@@ -13,10 +13,15 @@ import { BillSheet } from "@/components/bill/BillSheet";
 import { useTodayMenu } from "@/hooks/useTodayMenu";
 import type { ResolvedTable } from "@/services/table";
 import { checkInTableByQr, validateTableSession } from "@/services/qr";
+import { io } from "socket.io-client";
 import { useCategories } from "@/hooks/useCategories";
 import type { Category } from "@/types/menu";
 import MenuCategoryFilter from "./MenuCategoryFilter";
 import { TableOrderTracker } from "@/components/table/TableOrderTracker";
+
+const API_ORIGIN = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+).replace(/\/api\/?$/, "");
 
 type Params = Promise<{ id: string }>;
 
@@ -37,6 +42,9 @@ export default function TablePage({ params }: { params: Params }) {
   const [tableOk, setTableOk] = useState<boolean | null>(null);
   const [accessDenied, setAccessDenied] = useState<string | null>(null);
   const [table, setTable] = useState<ResolvedTable | null>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [checkingIn, setCheckingIn] = useState(false);
   const tableSessionKey = `table-session:${id}`;
 
   useEffect(() => {
@@ -51,15 +59,7 @@ export default function TablePage({ params }: { params: Params }) {
             ? sessionStorage.getItem(tableSessionKey)
             : null;
 
-        if (qrToken) {
-          const checkIn = await checkInTableByQr(id, qrToken);
-          sessionStorage.setItem(tableSessionKey, checkIn.sessionToken);
-          sessionStorage.setItem(
-            `table-session:${checkIn.table.id}`,
-            checkIn.sessionToken,
-          );
-          resolvedTable = checkIn.table;
-        } else if (existingSession) {
+        if (!qrToken && existingSession) {
           const validated = await validateTableSession(id, existingSession);
           resolvedTable = validated.table;
         }
@@ -73,7 +73,7 @@ export default function TablePage({ params }: { params: Params }) {
 
       if (!resolvedTable) {
         setTableOk(false);
-        setAccessDenied(denialMessage);
+        setAccessDenied(qrToken ? null : denialMessage);
         setTable(null);
         setTableId(null);
         return;
@@ -95,7 +95,100 @@ export default function TablePage({ params }: { params: Params }) {
     };
   }, [id, qrToken, tableSessionKey, setTableId, fetchCart, collapseCart]);
 
+  // Lắng nghe sự kiện payment_completed để tự redirect về home
+  useEffect(() => {
+    if (!tableOk) return;
+
+    const socket = io(API_ORIGIN);
+    socket.emit("join-table", id);
+
+    socket.on("payment_completed", () => {
+      sessionStorage.removeItem(`table-session:${id}`);
+      window.location.href = "/";
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [id, tableOk]);
+
+  const handleCheckIn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!qrToken) return;
+
+    setCheckingIn(true);
+    setAccessDenied(null);
+    try {
+      const checkIn = await checkInTableByQr(id, qrToken, {
+        customerName,
+        customerPhone,
+      });
+      sessionStorage.setItem(tableSessionKey, checkIn.sessionToken);
+      sessionStorage.setItem(
+        `table-session:${checkIn.table.id}`,
+        checkIn.sessionToken,
+      );
+      setTableOk(true);
+      setTable(checkIn.table);
+      setTableId(checkIn.table.id);
+      fetchCart(checkIn.table.id);
+      collapseCart();
+    } catch (e) {
+      setAccessDenied(e instanceof Error ? e.message : "Check-in that bai");
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
   if (isLoading || tableOk === null) return <MenuSkeleton />;
+
+  if (tableOk === false && qrToken) {
+    return (
+      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4">
+        <form
+          onSubmit={handleCheckIn}
+          className="space-y-4 rounded-card border border-neutral-200 bg-white p-6 shadow-card"
+        >
+          <div>
+            <p className="text-sm font-medium text-neutral-500">Bàn {id}</p>
+            <h1 className="text-2xl font-bold text-neutral-900">
+              Thông tin khách hàng
+            </h1>
+          </div>
+          {accessDenied && (
+            <p className="rounded-btn bg-error-500/10 px-3 py-2 text-sm text-error-600">
+              {accessDenied}
+            </p>
+          )}
+          <label className="block text-sm font-medium text-neutral-700">
+            Họ tên
+            <input
+              value={customerName}
+              onChange={(event) => setCustomerName(event.target.value)}
+              className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 outline-none focus:border-primary-500"
+              placeholder="Nguyễn Văn A"
+            />
+          </label>
+          <label className="block text-sm font-medium text-neutral-700">
+            Số điện thoại
+            <input
+              value={customerPhone}
+              onChange={(event) => setCustomerPhone(event.target.value)}
+              className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 outline-none focus:border-primary-500"
+              placeholder="0901234567"
+              required
+            />
+          </label>
+          <button
+            disabled={checkingIn}
+            className="w-full rounded-btn bg-primary-600 px-4 py-2 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {checkingIn ? "Đang check-in..." : "Tiếp tục vào bàn"}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   if (tableOk === false) {
     return (

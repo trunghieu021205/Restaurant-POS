@@ -9,6 +9,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createOrderFromCart } from "@/services/orders";
 import { toast } from "@/lib/toast";
+import { useBill } from "@/hooks/useBill";
 
 // ── Item riêng biệt để isolate state ────────────────────────────
 function CartItemRow({
@@ -90,6 +91,10 @@ export default function Cart() {
   const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const { data: bill } = useBill(tableId ?? "");
+  const hasPendingCashRequest =
+    !!bill && bill.paymentMethod === "cash" && bill.status !== "paid";
+
   const totalAmount = getTotal();
   const isEmpty = items.length === 0;
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
@@ -112,7 +117,9 @@ export default function Cart() {
       collapseCart();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gửi order thất bại");
+      toast.error(
+        error instanceof Error ? error.message : "Gửi order thất bại",
+      );
     },
   });
 
@@ -191,10 +198,19 @@ export default function Cart() {
             </div>
             <button
               onClick={handleSendOrder}
-              disabled={sendOrder.isPending}
-              className="w-full bg-primary-500 hover:bg-primary-600 active:scale-95 text-white py-2.5 rounded-btn font-medium text-sm transition-all shadow-sm hover:shadow-md"
+              disabled={sendOrder.isPending || hasPendingCashRequest}
+              title={
+                hasPendingCashRequest
+                  ? "Đã gửi yêu cầu thanh toán, không thể đặt thêm món"
+                  : undefined
+              }
+              className="w-full bg-primary-500 hover:bg-primary-600 active:scale-95 text-white py-2.5 rounded-btn font-medium text-sm transition-all shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100"
             >
-              {sendOrder.isPending ? "Đang gửi..." : "Gửi order"}
+              {sendOrder.isPending
+                ? "Đang gửi..."
+                : hasPendingCashRequest
+                  ? "Đang chờ thanh toán..."
+                  : "Gửi order"}
             </button>
             <button
               onClick={handleViewBill}

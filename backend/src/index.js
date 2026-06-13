@@ -49,7 +49,11 @@ app.use('/api/tables', tableRoutes);
 const categoriesRoutes = require('./routes/categoriesRoutes');
 app.use('/api/categories', categoriesRoutes);
 
+const billRoutes = require('./routes/billRoutes');
+app.use('/api/bills', billRoutes);
+
 app.get('/', (req, res) => res.send('API running'));
+
 
 const { initSocket } = require('./socket');
 initSocket(io);

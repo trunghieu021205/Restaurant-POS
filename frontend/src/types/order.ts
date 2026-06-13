@@ -13,7 +13,7 @@ export interface Order {
     user?: string;
     items: OrderItem[];
     billId?: string;
-    status: 'pending' | 'confirmed' | 'cooking' | 'done' | 'cancelled';
+    status: 'pending' | 'confirmed' | 'delivered' | 'cancelled';
     totalAmount: number;
     subTotal: number;
     createdAt?: string;

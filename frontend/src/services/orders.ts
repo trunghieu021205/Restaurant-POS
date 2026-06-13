@@ -4,8 +4,6 @@ import type { CartItem } from "@/types/cart";
 export type OrderStatus =
   | "pending"
   | "confirmed"
-  | "cooking"
-  | "done"
   | "delivered"
   | "cancelled";
 

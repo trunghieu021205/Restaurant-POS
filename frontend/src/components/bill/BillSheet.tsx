@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Loader2, Printer, Receipt, X } from "lucide-react";
+import { AlertCircle, Loader2, Receipt, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Sheet, SheetContent } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -11,6 +12,8 @@ import type { PaymentMethod } from "@/types/bill";
 import { BillSkeleton } from "./BillSkeleton";
 import { formatCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { createPaymentTransaction } from "@/services/payment";
+import { toast } from "react-hot-toast";
 
 interface BillSheetProps {
   tableId: string;
@@ -29,14 +32,48 @@ export function BillSheet({
   const { data: bill, isLoading, isError, refetch } = useBill(tableId);
   const checkout = useCheckout(tableId);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!bill || bill.items.length === 0 || checkout.isPending) return;
-    checkout.mutate(paymentMethod);
+
+    if (paymentMethod === "online_qr") {
+      // Get the first order ID from the bill items
+      const orderId = bill.items[0]?.orderId;
+      if (!orderId) {
+        toast.error("Không tìm thấy đơn hàng để thanh toán");
+        return;
+      }
+
+      setIsCreatingPayment(true);
+      try {
+        const result = await createPaymentTransaction({ orderId, tableId });
+        // Redirect to payment processing page
+        window.location.href = `/payment/processing?paymentUrl=${encodeURIComponent(result.paymentUrl)}&amount=${bill.totalAmount}`;
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể tạo giao dịch thanh toán",
+        );
+        setIsCreatingPayment(false);
+      }
+      return;
+    }
+
+    checkout.mutate("cash");
   };
 
+  const hasPendingCashRequest =
+    !!bill && bill.paymentMethod === "cash" && bill.status !== "paid";
+
   const canCheckout =
-    !!bill && bill.items.length > 0 && bill.status !== "paid" && !checkout.isPending;
+    !!bill &&
+    bill.items.length > 0 &&
+    bill.status !== "paid" &&
+    !hasPendingCashRequest &&
+    !checkout.isPending &&
+    !isCreatingPayment;
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -97,19 +134,18 @@ export function BillSheet({
             ) : (
               <div className="mt-2 rounded-lg bg-white p-4 shadow-sm">
                 <div className="grid grid-cols-12 border-b border-gray-100 pb-2 text-xs font-semibold uppercase text-gray-500">
-                  <span className="col-span-6">Món</span>
-                  <span className="col-span-2 text-center">SL</span>
-                  <span className="col-span-2 text-right">Đơn giá</span>
-                  <span className="col-span-2 text-right">Thành tiền</span>
+                  <span className="col-span-3">Món</span>
+                  <span className="col-span-1 text-center">SL</span>
+                  <span className="col-span-4 text-right">Đơn giá</span>
+                  <span className="col-span-4 text-right">Thành tiền</span>
                 </div>
-
                 <div className="divide-y divide-gray-50">
-                  {bill.items.map((item) => (
+                  {bill.items.map((item: any) => (
                     <div
                       key={item.id}
                       className="grid grid-cols-12 items-start py-2.5 text-sm"
                     >
-                      <div className="col-span-6">
+                      <div className="col-span-3">
                         <p className="font-medium text-gray-800">{item.name}</p>
                         {item.notes && (
                           <p className="mt-0.5 text-xs text-gray-400">
@@ -117,19 +153,18 @@ export function BillSheet({
                           </p>
                         )}
                       </div>
-                      <span className="col-span-2 text-center text-gray-600">
+                      <span className="col-span-1 text-center text-gray-600">
                         {item.quantity}
                       </span>
-                      <span className="col-span-2 text-right text-gray-600">
+                      <span className="col-span-4 text-right text-gray-600">
                         {formatCurrency(item.price)}
                       </span>
-                      <span className="col-span-2 text-right font-medium text-gray-800">
+                      <span className="col-span-4 text-right font-medium text-gray-800">
                         {formatCurrency(item.price * item.quantity)}
                       </span>
                     </div>
                   ))}
                 </div>
-
                 <div className="mt-2 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>Tạm tính</span>
@@ -162,47 +197,58 @@ export function BillSheet({
             <label className="mb-2 block text-sm font-medium text-gray-700">
               Phương thức thanh toán
             </label>
-            <select
-              value={paymentMethod}
-              onChange={(event) =>
-                setPaymentMethod(event.target.value as PaymentMethod)
-              }
-              disabled={checkout.isPending || bill.status === "paid"}
-              className="mb-3 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-400/20 disabled:opacity-60"
-            >
-              <option value="cash">Tiền mặt</option>
-              <option value="credit_card">Thẻ ngân hàng</option>
-              <option value="e_wallet">Ví điện tử</option>
-            </select>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                size="lg"
-                onClick={() => window.print()}
-                disabled={checkout.isPending}
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                In
-              </Button>
-              <Button
-                className="flex-1"
-                size="lg"
-                onClick={handleCheckout}
-                disabled={!canCheckout}
-              >
-                {checkout.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Đang thanh toán...
-                  </>
-                ) : bill.status === "paid" ? (
-                  "Đã thanh toán"
-                ) : (
-                  "Thanh toán"
-                )}
-              </Button>
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              {[
+                { value: "cash", label: "Tiền mặt" },
+                { value: "online_qr", label: "VNPay" },
+              ].map((method) => (
+                <button
+                  key={method.value}
+                  type="button"
+                  onClick={() =>
+                    setPaymentMethod(method.value as PaymentMethod)
+                  }
+                  disabled={
+                    checkout.isPending ||
+                    bill.status === "paid" ||
+                    isCreatingPayment
+                  }
+                  className={`rounded-md border px-3 py-2 text-sm font-medium ${
+                    paymentMethod === method.value
+                      ? "border-primary-500 bg-primary-50 text-primary-800"
+                      : "border-neutral-200 bg-white text-gray-700"
+                  } disabled:opacity-60`}
+                >
+                  {method.label}
+                </button>
+              ))}
             </div>
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={handleCheckout}
+              disabled={!canCheckout}
+            >
+              {isCreatingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang tạo giao dịch...
+                </>
+              ) : checkout.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : bill.status === "paid" ? (
+                "Đã thanh toán"
+              ) : hasPendingCashRequest ? (
+                "Đã gửi yêu cầu — đang chờ nhân viên"
+              ) : paymentMethod === "cash" ? (
+                "Gửi yêu cầu"
+              ) : (
+                "Thanh toán trực tuyến"
+              )}
+            </Button>
           </div>
         )}
       </SheetContent>

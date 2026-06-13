@@ -14,6 +14,6 @@ router.get('/table/:tableId', authMiddleware, requiredRole(['admin']), getTableQ
 router.get('/tables', authMiddleware, requiredRole(['admin']), getAllTableQRs);
 router.post('/table/:tableId/check-in', checkInTable);
 router.post('/table/:tableId/session', validateTableSession);
-router.get('/payment/:billId', authMiddleware, requiredRole(['user']), getPaymentQR);
+router.get('/payment/:billId', getPaymentQR);
 
 module.exports = router;

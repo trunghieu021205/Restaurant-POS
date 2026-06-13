@@ -7,19 +7,23 @@ const { resolveTableByIdentifier } = require('../utils/resolveTable');
 require('../models/User');
 const { getIO } = require('../socket');
 
-const OPERATIONAL_STATUSES = ['pending', 'confirmed', 'cooking', 'done', 'delivered', 'cancelled'];
+const OPERATIONAL_STATUSES = ['pending', 'confirmed', 'delivered', 'cancelled'];
 
 exports.createOrder = async (req, res) => {
     try {
         const { tableId, items } = req.body;
 
         if (!tableId) {
-            return res.status(400).json({ message: 'Missing tableId' });
+            return res.status(400).json({ message: 'Thiếu tableId' });
         }
 
         const table = await resolveTableByIdentifier(tableId);
         if (!table) {
-            return res.status(404).json({ message: 'Table not found' });
+            return res.status(404).json({ message: 'Không tìm thấy bàn' });
+        }
+
+        if (table.status !== 'occupied' || !table.checkedInAt) {
+            return res.status(409).json({ message: 'Table session is not active. Please scan QR and check in again.' });
         }
 
         if (!items || !Array.isArray(items) || items.length === 0) {
@@ -122,10 +126,8 @@ exports.updateOrderStatus = async (req, res) => {
         }
 
         const transitions = {
-            pending: ['confirmed', 'cooking', 'cancelled'],
-            confirmed: ['cooking', 'cancelled'],
-            cooking: ['done', 'cancelled'],
-            done: ['delivered'],
+            pending: ['confirmed', 'cancelled'],
+            confirmed: ['delivered', 'cancelled'],
             delivered: [],
             cancelled: []
         };
@@ -199,7 +201,7 @@ exports.getOrdersByTable = async (req, res) => {
 
         const orders = await Order.find({
             tableId: table._id,
-            status: { $in: ['pending', 'confirmed', 'cooking', 'done'] }
+            status: { $in: ['pending', 'confirmed'] }
         })
             .populate('tableId', 'number')
             .populate('billId', 'status totalAmount')

@@ -1,32 +1,30 @@
-import apiClient from "@/services/apiClient";
-import type { Bill, PaymentMethod } from "@/types/bill";
-import type { OrderStatus } from "@/services/orders";
+import apiClient from "./apiClient";
+import type { BillResponse } from "@/types/bill";
 
-interface RawBillItem {
-  id?: string;
-  orderId?: string;
-  orderNumber?: string;
-  name: string;
-  price: number;
-  quantity: number;
-  notes?: string;
-  note?: string;
-  status?: OrderStatus;
-}
-
-interface RawBill {
-  id: string | null;
+export interface PaidBillTodayItem {
+  id: string;
   tableId: string;
   tableNumber?: number;
-  status: Bill["status"];
-  items: RawBillItem[];
+  status: "paid" | string | null;
+  items: Array<{
+    id: string;
+    orderId?: string;
+    orderNumber?: string;
+    name: string;
+    quantity: number;
+    price: number;
+    notes?: string;
+    status?: string;
+  }>;
   subtotal: number;
-  tax?: number;
+  tax: number;
   vatAmount: number;
-  discount?: number;
+  discount: number;
   totalAmount: number;
-  paymentMethod?: PaymentMethod;
-  paidAt?: string;
+  customerName?: string;
+  customerPhone?: string;
+  paymentMethod?: "cash" | "online_qr" | string | null;
+  paidAt?: string | null;
 }
 
 function mapBill(bill: RawBill): Bill {
@@ -77,3 +75,21 @@ export async function checkoutTable(
     bill: mapBill(result.bill),
   };
 }
+
+export async function fetchPaidBillsTodayForStaff(): Promise<PaidBillTodayItem[]> {
+  const res = await apiClient<{ items: PaidBillTodayItem[] }>(
+    "/bills/staff/paid-today",
+  );
+  return res.items;
+}
+
+export async function fetchBillById(billId: string): Promise<Bill> {
+  const bill = await apiClient<RawBill>(`/bills/${encodeURIComponent(billId)}`);
+  return mapBill(bill);
+}
+
+export async function getBillReceipt(billId: string): Promise<BillResponse> {
+  // Không truyền token — public route
+  return apiClient<BillResponse>(`/bills/${billId}/receipt`);
+}
+

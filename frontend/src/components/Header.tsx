@@ -43,14 +43,15 @@ export default function Header() {
   const menuHref = role === "staff" ? "/staff/menu" : "/admin/menu";
   const navLinks = [
     ...(isStaffOrAdmin
+      ? [{ href: "/staff/tables", label: "Quản lý bàn" }]
+      : []),
+    ...(isStaffOrAdmin
       ? [
           { href: menuHref, label: "Thực đơn" },
           { href: "/kitchen", label: "Bếp" },
         ]
       : []),
-    ...(role === "admin"
-      ? [{ href: "/admin/stats", label: "Thống kê" }]
-      : []),
+    ...(role === "admin" ? [{ href: "/admin/stats", label: "Thống kê" }] : []),
   ];
 
   return (
@@ -179,21 +180,6 @@ export default function Header() {
       >
         <div className="flex flex-col h-full p-6">
           <div className="flex justify-between items-center mb-6">
-            {/* Bill button trong mobile drawer */}
-            {tableId ? (
-              <button
-                onClick={() => {
-                  openBill();
-                  closeMobileMenu();
-                }}
-                className="flex items-center gap-2 text-sm font-medium text-primary-600"
-              >
-                <FileText className="h-5 w-5" />
-                Hoá đơn bàn {tableId}
-              </button>
-            ) : (
-              <span />
-            )}
             <button
               onClick={closeMobileMenu}
               className="p-2 rounded-btn text-neutral-700 hover:bg-neutral-100 transition-colors"

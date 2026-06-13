@@ -41,17 +41,26 @@ export default function KitchenPage() {
   }, [error]);
 
   const mutation = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: string; status: OrderStatus }) =>
-      updateOrderStatus(orderId, status),
+    mutationFn: ({
+      orderId,
+      status,
+    }: {
+      orderId: string;
+      status: OrderStatus;
+    }) => updateOrderStatus(orderId, status),
     onMutate: ({ orderId }) => setUpdatingId(orderId),
     onSuccess: (order) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["table-orders", order.tableId] });
+      queryClient.invalidateQueries({
+        queryKey: ["table-orders", order.tableId],
+      });
       queryClient.invalidateQueries({ queryKey: ["bill", order.tableId] });
       toast.success("Đã cập nhật trạng thái đơn");
     },
     onError: (e) => {
-      toast.error(e instanceof Error ? e.message : "Cập nhật trạng thái thất bại");
+      toast.error(
+        e instanceof Error ? e.message : "Cập nhật trạng thái thất bại",
+      );
     },
     onSettled: () => setUpdatingId(null),
   });
@@ -73,23 +82,31 @@ export default function KitchenPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">
-          Bếp - Đơn hàng
-        </h1>
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-3 pt-4 pb-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold text-gray-900">Bếp</h1>
+          {orders.length > 0 && (
+            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              {orders.length} đơn
+            </span>
+          )}
+        </div>
         <OrderFilter selected={filter} onFilterChange={setFilter} />
+      </div>
 
+      <div className="px-3 py-4">
         {isLoading && <KitchenSkeleton />}
 
-        {error && (
-          <div className="text-center py-12 text-gray-500">
+        {error && !isLoading && (
+          <div className="text-center py-12 text-gray-500 text-sm">
             Không thể tải danh sách đơn hàng.
           </div>
         )}
 
         <AnimatePresence mode="popLayout">
           {!isLoading && orders.length > 0 ? (
-            <div className="grid gap-4 mt-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {orders.map((order) => (
                 <OrderCard
                   key={order.id}
@@ -102,7 +119,7 @@ export default function KitchenPage() {
           ) : (
             !isLoading && (
               <div className="text-center py-16 text-gray-400">
-                <p className="text-lg">Không có đơn hàng nào.</p>
+                <p className="text-base">Không có đơn hàng nào.</p>
               </div>
             )
           )}

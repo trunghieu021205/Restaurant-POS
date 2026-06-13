@@ -12,7 +12,9 @@ const BillSchema = new mongoose.Schema({
     tax: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
     totalAmount: { type: Number, default: 0 },
-    paymentMethod: { type: String, enum: ['cash', 'credit_card', 'e_wallet'] },
+    customerName: { type: String, trim: true, index: true },
+    customerPhone: { type: String, trim: true, index: true },
+    paymentMethod: { type: String, enum: ['cash', 'online_qr'] },
     paidAt: { type: Date }
 }, { timestamps: true });
 

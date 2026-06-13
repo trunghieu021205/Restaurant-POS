@@ -11,7 +11,7 @@ const OrderSchema = new mongoose.Schema({
         price: { type: Number, required: true },
         note: { type: String }
     }],
-    status: { type: String, enum: ['pending', 'confirmed', 'cooking', 'done', 'delivered', 'cancelled'], default: 'pending' },
+    status: { type: String, enum: ['pending', 'confirmed', 'delivered', 'cancelled'], default: 'pending' },
     totalAmount: { type: Number, default: 0 },
     subTotal: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },

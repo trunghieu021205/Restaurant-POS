@@ -5,6 +5,7 @@ function initSocket(socketServer) {
   io.on('connection', (socket) => {
     console.log('Client connected');
     socket.on('join-kitchen', () => socket.join('kitchen'));
+    socket.on('join-staff', () => socket.join('staff'));
     socket.on('join-table', (tableId) => {
       if (tableId) socket.join(`table_${tableId}`);
     });
