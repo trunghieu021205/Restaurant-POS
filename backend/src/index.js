@@ -76,14 +76,6 @@ app.use('/api/admin/stats', statsAdminRoutes);
 
 app.get('/', (req, res) => res.send('API running'));
 
-const { initSocket = require('./socket') } = {};
-const socketModule = require('./socket');
-if (socketModule && typeof socketModule.initSocket === 'function') {
-  socketModule.initSocket(io);
-} else if (typeof socketModule === 'function') {
-  socketModule(io);
-}
-
 // Start cron jobs
 try {
   const { startCronJobs } = require('./utils/cron');
@@ -120,4 +112,3 @@ server.on('error', (err) => {
 });
 
 server.listen(PORT, () => console.log(`Server running on ${PORT}`));
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
