@@ -49,6 +49,16 @@ export async function validateTableSession(
   });
 }
 
+export async function rejoinTableSession(
+  tableId: string,
+  customer: { customerName: string; customerPhone: string },
+): Promise<TableSessionDto> {
+  return apiClient<TableSessionDto>(`/qr/table/${encodeURIComponent(tableId)}/rejoin`, {
+    method: 'POST',
+    body: JSON.stringify(customer),
+  });
+}
+
 export interface PaymentQRDto {
   billId: string;
   tableId: string;

@@ -41,6 +41,10 @@ function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function sameCustomer(left, right) {
+  return normalizeText(left).toLowerCase() === normalizeText(right).toLowerCase();
+}
+
 function isValidPhone(phone) {
   return PHONE_PATTERN.test(phone);
 }
@@ -227,12 +231,63 @@ exports.validateTableSession = async (req, res) => {
         id: table._id.toString(),
         number: table.number,
         capacity: table.capacity,
-        status: table.status
+        status: table.status,
+        customerName: table.customerName,
+        customerPhone: table.customerPhone,
+        checkedInAt: table.checkedInAt
       }
     });
   } catch (error) {
     console.error('Table session validation failed:', error);
     return res.status(401).json({ message: 'Mã phiên làm việc không hợp lệ hoặc đã hết hạn' });
+  }
+};
+
+exports.rejoinTableSession = async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    const customerName = normalizeText(req.body.customerName);
+    const customerPhone = normalizeText(req.body.customerPhone);
+
+    if (!customerName || !isValidPhone(customerPhone)) {
+      return res.status(400).json({ message: 'Tên khách hàng và số điện thoại hợp lệ là bắt buộc' });
+    }
+
+    const table = await resolveTableByIdentifier(tableId);
+    if (!table) {
+      return res.status(404).json({ message: 'Bàn không tồn tại' });
+    }
+
+    if (table.status !== 'occupied' || !table.checkedInAt) {
+      return res.status(409).json({ message: 'Phiên bàn không còn hoạt động' });
+    }
+
+    const bill = await Bill.findOne({ tableId: table._id, status: 'open' }).sort({ createdAt: -1 });
+    if (!bill) {
+      return res.status(409).json({ message: 'Không tìm thấy phiên hóa đơn đang mở' });
+    }
+
+    const nameMatches = sameCustomer(table.customerName || bill.customerName, customerName);
+    const phoneMatches = normalizeText(table.customerPhone || bill.customerPhone) === customerPhone;
+    if (!nameMatches || !phoneMatches) {
+      return res.status(403).json({ message: 'Thông tin khách hàng không khớp với phiên bàn hiện tại' });
+    }
+
+    return res.json({
+      table: {
+        id: table._id.toString(),
+        number: table.number,
+        capacity: table.capacity,
+        status: table.status,
+        customerName: table.customerName,
+        customerPhone: table.customerPhone,
+        checkedInAt: table.checkedInAt
+      },
+      sessionToken: signTableSessionToken(table)
+    });
+  } catch (error) {
+    console.error('Table rejoin failed:', error);
+    return res.status(500).json({ message: 'Không thể khôi phục phiên bàn' });
   }
 };
 
