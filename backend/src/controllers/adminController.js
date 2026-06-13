@@ -55,15 +55,16 @@ exports.getStats = async (req, res) => {
             totalRevenue,
             paidBills,
             paidOrders: paidBills,
-        // 3. Số đơn hàng chờ xử lý
-        const pendingOrders = await Order.countDocuments({ status: 'pending' });
-
-        res.json({
-            totalRevenue,
-            paidOrders,
-            pendingOrders,
-            topItems
         });
+        // 3. Số đơn hàng chờ xử lý
+        // const pendingOrders = await Order.countDocuments({ status: 'pending' });
+
+        // res.json({
+        //     totalRevenue,
+        //     paidOrders,
+        //     pendingOrders,
+        //     topItems
+        // });
     } catch (error) {
         console.error('Get stats error:', error);
         return res.status(500).json({ message: 'Không thể tải dữ liệu thống kê' });
