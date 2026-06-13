@@ -1,7 +1,7 @@
 // components/admin/menu/MenuForm.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Sheet, SheetContent } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
@@ -9,14 +9,21 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { ImageUpload } from "./ImageUpload";
 import { MenuFormData, MenuItem } from "@/types/menu";
 import { useCategories } from "@/hooks/useCategories";
+import { Category } from "@/services/adminCategories";
 import { X, Save } from "lucide-react";
+
+// ĐỊNH NGHĨA KIỂU DỮ LIỆU MỞ RỘNG CHO PAYLOAD CHỨA FILE ẢNH GỐC
+interface ExtendedMenuFormData extends MenuFormData {
+  imageFile?: File;
+}
 
 interface MenuFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: MenuFormData) => Promise<void>;
+  onSubmit: (data: ExtendedMenuFormData) => Promise<void>; // ✅ Đã cập nhật kiểu dữ liệu ở đây
   initialData?: MenuItem | null;
   isLoading?: boolean;
+  categories: Category[];
 }
 
 export function MenuForm({
@@ -25,9 +32,11 @@ export function MenuForm({
   onSubmit,
   initialData,
   isLoading,
+  categories,
 }: MenuFormProps) {
   const isEditing = !!initialData;
   const { categories, isLoading: categoriesLoading } = useCategories(true);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const {
     register,
@@ -72,12 +81,20 @@ export function MenuForm({
         isVisibleToday: false,
       });
     }
+    setImageFile(null); // Clear state khi mở lại / reset
   }, [initialData, reset, open]);
 
   const handleFormSubmit = async (data: MenuFormData) => {
-    await onSubmit(data);
+    // ✅ ÉP KIỂU VÀ ĐÍNH KÈM CHẮC CHẮN FILE GỐC VÀO PAYLOAD GỬI ĐI
+    const submitData: ExtendedMenuFormData = { 
+      ...data,
+      imageFile: imageFile || undefined
+    };
+    
+    await onSubmit(submitData);
     onOpenChange(false);
     reset();
+    setImageFile(null); // Clear state khi submit xong
   };
 
   return (
@@ -126,6 +143,8 @@ export function MenuForm({
                   </div>
 
                   {/* Giá */}
+                {/* Danh mục & Trạng thái */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
                       Giá (VNĐ) <span className="text-red-500">*</span>
@@ -145,6 +164,14 @@ export function MenuForm({
                         {errors.price.message}
                       </p>
                     )}
+                    >
+                      <option value="">Chọn danh mục</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Mô tả */}
@@ -247,6 +274,38 @@ export function MenuForm({
                 {isEditing ? "Cập nhật" : "Thêm món"}
               </Button>
             </div>
+                {/* Upload ảnh */}
+                <ImageUpload
+                  value={imageValue || ""}
+                  onChange={(url, file) => {
+                    setValue("image", url, { shouldDirty: true });
+                    if (file) {
+                      setImageFile(file);
+                    }
+                  }}
+                />
+              </div>
+            </form>
+          </ScrollArea>
+
+          {/* Footer */}
+          <div className="px-4 sm:px-6 py-4 border-t border-neutral-200 bg-neutral-50 flex gap-3 justify-end">
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => onOpenChange(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="submit"
+              form="menu-form"
+              disabled={isLoading || isSubmitting}
+              className="bg-primary-500 hover:bg-primary-600 text-white gap-2"
+            >
+              <Save className="w-4 h-4" />
+              {isEditing ? "Cập nhật" : "Thêm món"}
+            </Button>
           </div>
         </div>
       </SheetContent>

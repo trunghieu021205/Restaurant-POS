@@ -38,7 +38,14 @@ export default function LoginPage() {
     try {
       const response = await authService.login(data);
       setAuth(response.token, response.user);
-      router.push('/');
+      
+      if (response.user && response.user.role === 'admin') {
+        console.log("🎉 Quyền Admin được xác thực thành công. Điều hướng về Dashboard Thống kê...");
+        router.push('/admin'); // Đẩy thẳng vào trang Thống kê tổng quan đầu tiên
+      } else {
+        router.push('/'); // Khách hàng thông thường đẩy về trang chủ gọi món
+      }
+
     } catch (error: unknown) {
       if (error instanceof Error) {
         setServerError(error.message);
@@ -98,7 +105,7 @@ export default function LoginPage() {
               error={errors.email}
               placeholder="example@email.com"
               autoComplete="email"
-            />
+                />
 
             <FormInput
               label="Mật khẩu"

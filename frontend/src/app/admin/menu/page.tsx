@@ -1,41 +1,45 @@
-// app/admin/menu/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useMenu } from "@/hooks/useMenu";
 import { useCategories } from "@/hooks/useCategories";
+import { useState, useEffect, useCallback } from "react";
 import { MenuCard } from "@/components/admin/menu/MenuCard";
 import { MenuForm } from "@/components/admin/menu/MenuForm";
 import { DeleteConfirmDialog } from "@/components/admin/menu/DeleteConfirmDialog";
 import { MenuToolbar } from "@/components/admin/menu/MenuToolbar";
 import { Pagination } from "@/components/admin/menu/Pagination";
 import Skeleton from "@/components/ui/Skeleton";
-import { MenuItem, MenuFormData } from "@/types/menu";
+import { MenuItem, MenuFormData, MenuFilters } from "@/types/menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { AlertCircle, UtensilsCrossed } from "lucide-react";
 import { hasRole } from "@/lib/roles";
+import { toast } from "@/lib/toast";
+
+import { adminMenuService, PaginatedMenuResponse } from "@/services/adminMenu";
+import { adminCategoriesService, Category } from "@/services/adminCategories";
 
 export default function AdminMenuPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
 
-  const {
-    filters,
-    setSearch,
-    setCategory,
-    setStatus,
-    setPage,
-    menuData,
-    isLoading,
-    isError,
-    createItem,
-    updateItem,
-    deleteItem,
-    isCreating,
-    isUpdating,
-    isDeleting,
-  } = useMenu({ limit: 8 });
+  const [filters, setFilters] = useState<MenuFilters>(({
+    search: "",
+    category: "all",
+    status: "all",
+    page: 1,
+    limit: 8,
+  }));
+
+  const [menuData, setMenuData] = useState<PaginatedMenuResponse | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch 1 lần ở đây, pass xuống MenuToolbar và MenuCard
   const { categories, categoryMap } = useCategories(true);
@@ -49,8 +53,50 @@ export default function AdminMenuPage() {
     router.push("/");
     return null;
   }
+  const fetchCategories = async () => {
+    try {
+      const data = await adminCategoriesService.getAll();
+      setCategories(data);
+    } catch (error) {
+      console.error("Lỗi lấy danh mục:", error);
+      toast.error("Không thể tải danh sách danh mục");
+    }
+  };
 
-  if (authLoading) {
+  const fetchMenu = useCallback(async () => {
+    setIsLoading(true);
+    setIsError(false);
+    try {
+      const data = await adminMenuService.getAll(filters);
+      setMenuData(data);
+    } catch (error) {
+      console.error("Lỗi lấy thực đơn:", error);
+      setIsError(true);
+      toast.error("Không thể tải danh sách món ăn");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    if (!authLoading && user?.role === "admin") {
+      fetchCategories();
+    }
+  }, [authLoading, user]);
+
+  useEffect(() => {
+    if (!authLoading && user?.role === "admin") {
+      fetchMenu();
+    }
+  }, [fetchMenu, authLoading, user]);
+
+  useEffect(() => {
+    if (!authLoading && (!user || user.role !== "admin")) {
+      router.push("/");
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading || !user || user.role !== "admin") {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
@@ -73,19 +119,47 @@ export default function AdminMenuPage() {
     setDeleteOpen(true);
   };
 
-  const handleFormSubmit = async (data: MenuFormData) => {
-    if (editingItem) {
-      await updateItem({ id: editingItem.id, data });
-    } else {
-      await createItem(data);
+  // ✅ ĐÃ CẬP NHẬT ĐỂ ĐÓN NHẬN TRƯỜNG IMAGEFILE TỪ MENUFORM TRUYỀN RA
+  const handleFormSubmit = async (data: MenuFormData & { imageFile?: File }) => {
+    try {
+      const selectedCat = categories.find(c => c.name === data.category);
+      if (selectedCat) {
+        data.categoryId = selectedCat.id;
+      }
+
+      if (editingItem) {
+        setIsUpdating(true);
+        await adminMenuService.update(editingItem.id, data);
+        toast.success("Cập nhật món ăn thành công!");
+      } else {
+        setIsCreating(true);
+        await adminMenuService.create(data); // ✅ Dữ liệu truyền đi giờ đã giữ nguyên vẹn file gốc
+        toast.success("Thêm món ăn thành công!");
+      }
+      setFormOpen(false);
+      fetchMenu();
+    } catch (error: any) {
+      toast.error(error.message || "Đã xảy ra lỗi khi lưu món ăn");
+    } finally {
+      setIsCreating(false);
+      setIsUpdating(false);
     }
   };
 
   const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
-    await deleteItem(deletingItem.id);
-    setDeleteOpen(false);
-    setDeletingItem(null);
+    try {
+      setIsDeleting(true);
+      await adminMenuService.delete(deletingItem.id);
+      toast.success("Xóa món ăn thành công!");
+      setDeleteOpen(false);
+      setDeletingItem(null);
+      fetchMenu();
+    } catch (error: any) {
+      toast.error(error.message || "Đã xảy ra lỗi khi xóa món ăn");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -97,20 +171,16 @@ export default function AdminMenuPage() {
             <UtensilsCrossed className="w-5 h-5 text-primary-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-neutral-800">
-              Quản lý thực đơn
-            </h1>
-            <p className="text-sm text-neutral-500">
-              Thêm, sửa, xóa món ăn trong thực đơn
-            </p>
+            <h1 className="text-2xl font-bold text-neutral-800">Quản lý thực đơn</h1>
+            <p className="text-sm text-neutral-500">Thêm, sửa, xóa món ăn trong thực đơn</p>
           </div>
         </div>
 
         <MenuToolbar
           filters={filters}
-          onSearchChange={setSearch}
-          onCategoryChange={setCategory}
-          onStatusChange={setStatus}
+          onSearchChange={(search) => setFilters(prev => ({ ...prev, search, page: 1 }))}
+          onCategoryChange={(category) => setFilters(prev => ({ ...prev, category, page: 1 }))}
+          onStatusChange={(status: any) => setFilters(prev => ({ ...prev, status, page: 1 }))}
           onAddNew={handleAddNew}
           total={menuData?.total}
           categories={categories}
@@ -127,22 +197,21 @@ export default function AdminMenuPage() {
             <div className="bg-white rounded-2xl p-8 text-center border border-error-200 shadow-card">
               <AlertCircle className="w-12 h-12 text-error-400 mx-auto mb-3" />
               <p className="text-error-600 font-medium">Lỗi tải dữ liệu</p>
-              <p className="text-sm text-neutral-500 mt-1">
-                Vui lòng thử lại sau
-              </p>
+              <p className="text-sm text-neutral-500 mt-1">Vui lòng thử lại sau</p>
             </div>
-          ) : menuData?.items.length === 0 ? (
+          ) : !menuData || menuData.items.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border border-neutral-100 shadow-card">
               <div className="text-6xl mb-4">🍽️</div>
               <p className="text-neutral-500 text-lg">Chưa có món ăn nào</p>
               <p className="text-sm text-neutral-400 mt-1">
                 Nhấn &quot;Thêm món mới&quot; để bắt đầu
               </p>
+              <p className="text-sm text-neutral-400 mt-1">Nhấn "Thêm món mới" để bắt đầu</p>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {menuData!.items.map((item) => (
+                {menuData.items.map((item) => (
                   <MenuCard
                     key={item.id}
                     item={item}
@@ -153,9 +222,9 @@ export default function AdminMenuPage() {
                 ))}
               </div>
               <Pagination
-                page={menuData!.page}
-                totalPages={menuData!.totalPages}
-                onPageChange={setPage}
+                page={menuData.page}
+                totalPages={menuData.totalPages}
+                onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
               />
             </>
           )}
@@ -170,6 +239,7 @@ export default function AdminMenuPage() {
           onSubmit={handleFormSubmit}
           initialData={editingItem}
           isLoading={isCreating || isUpdating}
+          categories={categories}
         />
 
         <DeleteConfirmDialog

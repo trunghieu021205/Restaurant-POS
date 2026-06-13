@@ -23,6 +23,9 @@ export interface MenuFormData {
   categoryId?: string;
   description: string;
   imageUrl?: string;
+  image?: string;
+  imageFile?: File;
+  category?: string;
   isAvailable: boolean;
   isVisibleToday: boolean;
 }

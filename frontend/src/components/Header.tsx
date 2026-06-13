@@ -52,6 +52,9 @@ export default function Header() {
         ]
       : []),
     ...(role === "admin" ? [{ href: "/admin/stats", label: "Thống kê" }] : []),
+    ...(user?.role === "admin"
+      ? [{ href: "/admin", label: "Thống kê" }]
+      : []),
   ];
 
   return (
