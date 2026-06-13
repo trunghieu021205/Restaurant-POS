@@ -41,9 +41,9 @@ export default function LoginPage() {
       
       if (response.user && response.user.role === 'admin') {
         console.log("🎉 Quyền Admin được xác thực thành công. Điều hướng về Dashboard Thống kê...");
-        router.push('/admin'); // Đẩy thẳng vào trang Thống kê tổng quan đầu tiên
+        router.push('/admin');
       } else {
-        router.push('/'); // Khách hàng thông thường đẩy về trang chủ gọi món
+        router.push('/');
       }
 
     } catch (error: unknown) {
@@ -101,17 +101,17 @@ export default function LoginPage() {
               label="Email"
               name="email"
               type="email"
-              register={register}
+              register={register as any}
               error={errors.email}
               placeholder="example@email.com"
               autoComplete="email"
-                />
+            />
 
             <FormInput
               label="Mật khẩu"
-              name="password"
+              name="password" 
               type="password"
-              register={register}
+              register={register as any}
               error={errors.password}
               placeholder="••••••••"
               autoComplete="current-password"
