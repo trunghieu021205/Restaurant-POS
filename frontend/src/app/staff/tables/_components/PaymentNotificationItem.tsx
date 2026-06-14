@@ -1,6 +1,6 @@
 "use client";
 
-import { ReceiptText, CheckCircle2 } from "lucide-react";
+import { ReceiptText, CheckCircle2, Printer } from "lucide-react";
 import type { PaymentNotification } from "@/services/staffTables";
 
 // Helper functions (giữ nguyên)
@@ -64,6 +64,7 @@ interface Props {
   onOpenBill: (item: PaymentNotification) => void;
   onAssist: (id: string) => void;
   onComplete: (id: string) => void;
+  onPrint: (item: PaymentNotification) => void;
   isProcessing: boolean; // để disable nút khi đang gọi API
 }
 
@@ -73,6 +74,7 @@ export default function PaymentNotificationItem({
   onOpenBill,
   onAssist,
   onComplete,
+  onPrint,
   isProcessing,
 }: Props) {
   const id = notificationId(item);
@@ -138,6 +140,13 @@ export default function PaymentNotificationItem({
           className="flex-1 rounded-btn border border-neutral-200 px-2 py-1.5 text-xs"
         >
           <ReceiptText className="mr-1 inline" size={13} /> Hoá đơn
+        </button>
+
+        <button
+          onClick={() => onPrint(item)}
+          className="flex-1 rounded-btn border border-neutral-200 px-2 py-1.5 text-xs"
+        >
+          <Printer className="mr-1 inline" size={13} /> In
         </button>
 
         {/* Nút chính: Đã hỗ trợ / Hoàn tất */}

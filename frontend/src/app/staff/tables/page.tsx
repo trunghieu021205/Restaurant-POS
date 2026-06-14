@@ -125,11 +125,21 @@ export default function StaffTablesPage() {
         queryKey: ["staff-payment-notifications"],
       });
       queryClient.invalidateQueries({ queryKey: ["table-audit-logs"] });
-      
+
+      // Find the notification to get table number
+      const notification = notificationsQuery.data?.find(
+        (n) => (n.id || n._id) === variables.id,
+      );
+      const tableNo =
+        notification?.tableNumber ||
+        (typeof notification?.tableId === "object"
+          ? notification.tableId.number
+          : "-");
+
       if (variables.status === "assisted") {
-        toast.success("Đã xác nhận hỗ trợ yêu cầu thanh toán");
+        toast.success(`Đã hỗ trợ yêu cầu thanh toán của bàn ${tableNo}`);
       } else if (variables.status === "completed") {
-        toast.success("Đã xác nhận thanh toán thành công");
+        toast.success(`Đã xác nhận thanh toán của bàn ${tableNo}`);
       }
     },
     onError: (error) =>
@@ -184,9 +194,7 @@ export default function StaffTablesPage() {
             (typeof notification.tableId === "object"
               ? notification.tableId.number
               : "-");
-          toast.success(
-            `Bàn ${tableNo} gửi yêu cầu thanh toán tiền mặt (${notification.paymentStatus})`,
-          );
+          toast.success(`Bàn ${tableNo} đã gửi yêu cầu thanh toán`);
           return;
         }
         setSelectedNotification(notification);
@@ -206,9 +214,7 @@ export default function StaffTablesPage() {
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900">
-              Quản lý trạng thái bàn
-            </h1>
+            <h1 className="text-2xl font-bold text-neutral-900">Sơ đồ bàn</h1>
             <p className="text-sm text-neutral-500">
               Theo dõi realtime trạng thái bàn, đặt trước, hỗ trợ thanh toán và
               lịch sử thao tác.
@@ -220,7 +226,7 @@ export default function StaffTablesPage() {
               notificationsQuery.refetch();
               auditQuery.refetch();
             }}
-            className="inline-flex items-center gap-2 rounded-btn border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700"
+            className="inline-flex items-center gap-2 whitespace-nowrap rounded-btn border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700"
           >
             <RefreshCw size={16} /> Tải lại
           </button>
@@ -268,6 +274,15 @@ export default function StaffTablesPage() {
               onComplete={(id) =>
                 notificationMutation.mutate({ id, status: "completed" })
               }
+              onPrint={(item) => {
+                const billId =
+                  typeof item.billId === "object"
+                    ? item.billId._id
+                    : item.billId || "";
+                if (billId) {
+                  window.open(`/bill/${billId}/print`, "_blank");
+                }
+              }}
               isProcessing={notificationMutation.isPending}
             />
             <AuditLogPanel

@@ -13,6 +13,7 @@ interface Props {
   onOpenCashBill: (billId: string) => void;
   onAssist: (id: string) => void;
   onComplete: (id: string) => void;
+  onPrint: (item: PaymentNotification) => void;
   isProcessing: boolean; // trạng thái loading từ mutation
 }
 
@@ -23,6 +24,7 @@ export default function PaymentNotificationsPanel({
   onOpenCashBill,
   onAssist,
   onComplete,
+  onPrint,
   isProcessing,
 }: Props) {
   const router = useRouter();
@@ -102,6 +104,7 @@ export default function PaymentNotificationsPanel({
               onOpenBill={handleOpenBill}
               onAssist={onAssist}
               onComplete={onComplete}
+              onPrint={onPrint}
               isProcessing={isProcessing}
             />
           ))}

@@ -42,9 +42,7 @@ export default function Header() {
   const isStaffOrAdmin = role === "staff" || role === "admin";
   const menuHref = role === "staff" ? "/staff/menu" : "/admin/menu";
   const navLinks = [
-    ...(isStaffOrAdmin
-      ? [{ href: "/staff/tables", label: "Quản lý bàn" }]
-      : []),
+    ...(isStaffOrAdmin ? [{ href: "/staff/tables", label: "Sơ đồ bàn" }] : []),
     ...(isStaffOrAdmin
       ? [
           { href: menuHref, label: "Thực đơn" },
@@ -52,9 +50,7 @@ export default function Header() {
         ]
       : []),
     ...(role === "admin" ? [{ href: "/admin/stats", label: "Thống kê" }] : []),
-    ...(user?.role === "admin"
-      ? [{ href: "/admin", label: "Thống kê" }]
-      : []),
+    ...(user?.role === "admin" ? [{ href: "/admin", label: "Thống kê" }] : []),
   ];
 
   return (
