@@ -12,7 +12,6 @@ import { useCategories } from "@/hooks/useCategories";
 import { Category } from "@/services/adminCategories";
 import { X, Save } from "lucide-react";
 
-// ĐỊNH NGHĨA KIỂU DỮ LIỆU MỞ RỘNG CHO PAYLOAD CHỨA FILE ẢNH GỐC
 interface ExtendedMenuFormData extends MenuFormData {
   imageFile?: File;
 }
@@ -20,7 +19,7 @@ interface ExtendedMenuFormData extends MenuFormData {
 interface MenuFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: ExtendedMenuFormData) => Promise<void>; // ✅ Đã cập nhật kiểu dữ liệu ở đây
+  onSubmit: (data: ExtendedMenuFormData) => Promise<void>;
   initialData?: MenuItem | null;
   isLoading?: boolean;
   categories: Category[];
@@ -35,7 +34,7 @@ export function MenuForm({
   categories,
 }: MenuFormProps) {
   const isEditing = !!initialData;
-  const { categories, isLoading: categoriesLoading } = useCategories(true);
+  const { isLoading: categoriesLoading } = useCategories(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const {
@@ -65,9 +64,9 @@ export function MenuForm({
         name: initialData.name,
         price: initialData.price,
         description: initialData.description,
-        imageUrl: initialData.imageUrl,
+        imageUrl: initialData.imageUrl || initialData.image || "",
         categoryId: initialData.categoryId,
-        isAvailable: initialData.isAvailable,
+        isAvailable: initialData.isAvailable ?? true,
         isVisibleToday: initialData.isVisibleToday ?? false,
       });
     } else {
@@ -81,20 +80,19 @@ export function MenuForm({
         isVisibleToday: false,
       });
     }
-    setImageFile(null); // Clear state khi mở lại / reset
+    setImageFile(null);
   }, [initialData, reset, open]);
 
   const handleFormSubmit = async (data: MenuFormData) => {
-    // ✅ ÉP KIỂU VÀ ĐÍNH KÈM CHẮC CHẮN FILE GỐC VÀO PAYLOAD GỬI ĐI
-    const submitData: ExtendedMenuFormData = { 
+    const submitData: ExtendedMenuFormData = {
       ...data,
-      imageFile: imageFile || undefined
+      imageFile: imageFile || undefined,
     };
-    
+
     await onSubmit(submitData);
     onOpenChange(false);
     reset();
-    setImageFile(null); // Clear state khi submit xong
+    setImageFile(null);
   };
 
   return (
@@ -143,8 +141,6 @@ export function MenuForm({
                   </div>
 
                   {/* Giá */}
-                {/* Danh mục & Trạng thái */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
                       Giá (VNĐ) <span className="text-red-500">*</span>
@@ -164,14 +160,6 @@ export function MenuForm({
                         {errors.price.message}
                       </p>
                     )}
-                    >
-                      <option value="">Chọn danh mục</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.name}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
                   </div>
 
                   {/* Mô tả */}
@@ -225,7 +213,7 @@ export function MenuForm({
                       </div>
                     </div>
 
-                    <div>
+                    <div className="sm:col-span-2">
                       <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
                         Món hôm nay
                       </label>
@@ -245,12 +233,18 @@ export function MenuForm({
                   </div>
 
                   {/* Upload ảnh */}
-                  <ImageUpload
-                    value={imageUrlValue || ""}
-                    onChange={(url) =>
-                      setValue("imageUrl", url, { shouldDirty: true })
-                    }
-                  />
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
+                      Ảnh món ăn
+                    </label>
+                    <ImageUpload
+                      value={imageUrlValue || ""}
+                      onChange={(url, file) => {
+                        setValue("imageUrl", url, { shouldDirty: true });
+                        setImageFile(file || null);
+                      }}
+                    />
+                  </div>
                 </div>
               </form>
             </ScrollArea>
@@ -268,44 +262,12 @@ export function MenuForm({
                 type="submit"
                 form="menu-form"
                 disabled={isLoading || isSubmitting}
-                className="bg-primary-500 hover:bg-primary-600 text-white gap-2"
+                className="bg-primary-500 hover:bg-primary-600 text-white gap-2 flex items-center"
               >
                 <Save className="w-4 h-4" />
                 {isEditing ? "Cập nhật" : "Thêm món"}
               </Button>
             </div>
-                {/* Upload ảnh */}
-                <ImageUpload
-                  value={imageValue || ""}
-                  onChange={(url, file) => {
-                    setValue("image", url, { shouldDirty: true });
-                    if (file) {
-                      setImageFile(file);
-                    }
-                  }}
-                />
-              </div>
-            </form>
-          </ScrollArea>
-
-          {/* Footer */}
-          <div className="px-4 sm:px-6 py-4 border-t border-neutral-200 bg-neutral-50 flex gap-3 justify-end">
-            <Button
-              variant="ghost"
-              type="button"
-              onClick={() => onOpenChange(false)}
-            >
-              Hủy
-            </Button>
-            <Button
-              type="submit"
-              form="menu-form"
-              disabled={isLoading || isSubmitting}
-              className="bg-primary-500 hover:bg-primary-600 text-white gap-2"
-            >
-              <Save className="w-4 h-4" />
-              {isEditing ? "Cập nhật" : "Thêm món"}
-            </Button>
           </div>
         </div>
       </SheetContent>

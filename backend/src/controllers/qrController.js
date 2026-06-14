@@ -194,6 +194,10 @@ exports.checkInTable = async (req, res) => {
       return res.status(403).json({ message: 'Mã QR không khớp với bàn' });
     }
 
+    if (table.status === 'maintenance') {
+      return res.status(409).json({ message: 'Bàn đang bảo trì, vui lòng chọn bàn khác.' });
+    }
+    
     if (table.status === 'occupied') {
       return res.status(409).json({ message: 'Bàn đang được sử dụng' });
     }

@@ -100,6 +100,10 @@ exports.login = async (req, res) => {
         if (!user || !(await bcrypt.compare(password, user.password)))
             return res.status(401).json({ message: 'Sai email hoặc mật khẩu' });
 
+        if (user.isActive === false) {
+            return res.status(403).json({ message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Quản trị viên.' });
+        }
+        
         res.json(buildAuthResponse(user));
     } catch (error) {
         console.error('Login error:', error);

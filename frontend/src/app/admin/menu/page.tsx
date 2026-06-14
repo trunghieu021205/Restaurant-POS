@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMenu } from "@/hooks/useMenu";
 import { useCategories } from "@/hooks/useCategories";
-import { useState, useEffect, useCallback } from "react";
 import { MenuCard } from "@/components/admin/menu/MenuCard";
 import { MenuForm } from "@/components/admin/menu/MenuForm";
 import { DeleteConfirmDialog } from "@/components/admin/menu/DeleteConfirmDialog";
@@ -18,22 +17,20 @@ import { hasRole } from "@/lib/roles";
 import { toast } from "@/lib/toast";
 
 import { adminMenuService, PaginatedMenuResponse } from "@/services/adminMenu";
-import { adminCategoriesService, Category } from "@/services/adminCategories";
 
 export default function AdminMenuPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
 
-  const [filters, setFilters] = useState<MenuFilters>(({
+  const [filters, setFilters] = useState<MenuFilters>({
     search: "",
     category: "all",
     status: "all",
     page: 1,
     limit: 8,
-  }));
+  });
 
   const [menuData, setMenuData] = useState<PaginatedMenuResponse | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
@@ -41,27 +38,13 @@ export default function AdminMenuPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch 1 lần ở đây, pass xuống MenuToolbar và MenuCard
+  // SỬ DỤNG LẠI HOOK USECATEGORIES (Đã được test ổn định)
   const { categories, categoryMap } = useCategories(true);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<MenuItem | null>(null);
-
-  if (!authLoading && !hasRole(user, ["admin"])) {
-    router.push("/");
-    return null;
-  }
-  const fetchCategories = async () => {
-    try {
-      const data = await adminCategoriesService.getAll();
-      setCategories(data);
-    } catch (error) {
-      console.error("Lỗi lấy danh mục:", error);
-      toast.error("Không thể tải danh sách danh mục");
-    }
-  };
 
   const fetchMenu = useCallback(async () => {
     setIsLoading(true);
@@ -77,12 +60,6 @@ export default function AdminMenuPage() {
       setIsLoading(false);
     }
   }, [filters]);
-
-  useEffect(() => {
-    if (!authLoading && user?.role === "admin") {
-      fetchCategories();
-    }
-  }, [authLoading, user]);
 
   useEffect(() => {
     if (!authLoading && user?.role === "admin") {
@@ -119,12 +96,12 @@ export default function AdminMenuPage() {
     setDeleteOpen(true);
   };
 
-  // ✅ ĐÃ CẬP NHẬT ĐỂ ĐÓN NHẬN TRƯỜNG IMAGEFILE TỪ MENUFORM TRUYỀN RA
   const handleFormSubmit = async (data: MenuFormData & { imageFile?: File }) => {
     try {
-      const selectedCat = categories.find(c => c.name === data.category);
+      const selectedCat = categories?.find(c => c.name === data.category);
       if (selectedCat) {
-        data.categoryId = selectedCat.id;
+        // Đảm bảo lấy đúng ID kể cả khi trường bị map thành _id
+        data.categoryId = selectedCat.id || (selectedCat as any)._id; 
       }
 
       if (editingItem) {
@@ -133,7 +110,7 @@ export default function AdminMenuPage() {
         toast.success("Cập nhật món ăn thành công!");
       } else {
         setIsCreating(true);
-        await adminMenuService.create(data); // ✅ Dữ liệu truyền đi giờ đã giữ nguyên vẹn file gốc
+        await adminMenuService.create(data);
         toast.success("Thêm món ăn thành công!");
       }
       setFormOpen(false);
@@ -183,7 +160,7 @@ export default function AdminMenuPage() {
           onStatusChange={(status: any) => setFilters(prev => ({ ...prev, status, page: 1 }))}
           onAddNew={handleAddNew}
           total={menuData?.total}
-          categories={categories}
+          categories={categories || []}
         />
 
         <div className="mt-6">
@@ -199,27 +176,40 @@ export default function AdminMenuPage() {
               <p className="text-error-600 font-medium">Lỗi tải dữ liệu</p>
               <p className="text-sm text-neutral-500 mt-1">Vui lòng thử lại sau</p>
             </div>
-          ) : !menuData || menuData.items.length === 0 ? (
+          ) : !menuData || !menuData.items || menuData.items.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border border-neutral-100 shadow-card">
               <div className="text-6xl mb-4">🍽️</div>
               <p className="text-neutral-500 text-lg">Chưa có món ăn nào</p>
               <p className="text-sm text-neutral-400 mt-1">
                 Nhấn &quot;Thêm món mới&quot; để bắt đầu
               </p>
-              <p className="text-sm text-neutral-400 mt-1">Nhấn "Thêm món mới" để bắt đầu</p>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {menuData.items.map((item) => (
-                  <MenuCard
-                    key={item.id}
-                    item={item}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    categoryMap={categoryMap}
-                  />
-                ))}
+                {menuData.items.map((item) => {
+                  // BẢO VỆ CRASH: Chuẩn hóa categoryId và ID trong trường hợp Backend gởi object từ hàm populate
+                  const safeId = item.id || (item as any)._id;
+                  const safeCategoryId = typeof item.categoryId === 'object' && item.categoryId !== null 
+                                  ? (item.categoryId as any)._id || (item.categoryId as any).id 
+                                  : item.categoryId;
+                  
+                  const normalizedItem = {
+                    ...item,
+                    id: safeId,
+                    categoryId: safeCategoryId
+                  };
+
+                  return (
+                    <MenuCard
+                      key={safeId}
+                      item={normalizedItem}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      categoryMap={categoryMap || {}}
+                    />
+                  );
+                })}
               </div>
               <Pagination
                 page={menuData.page}
@@ -239,7 +229,7 @@ export default function AdminMenuPage() {
           onSubmit={handleFormSubmit}
           initialData={editingItem}
           isLoading={isCreating || isUpdating}
-          categories={categories}
+          categories={categories || []}
         />
 
         <DeleteConfirmDialog
