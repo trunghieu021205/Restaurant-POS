@@ -8,6 +8,8 @@ import useCartStore from "@/stores/cart";
 import useBillStore from "@/stores/bill";
 import { ShoppingCart, Menu, X, ChevronDown, FileText } from "lucide-react";
 import { normalizeRole } from "@/lib/roles";
+import { authService } from "@/services/auth";
+import { stopProactiveRefresh } from "@/services/apiClient";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -30,10 +32,19 @@ export default function Header() {
     };
   }, [mobileMenuOpen]);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-    setMobileMenuOpen(false);
+  const handleLogout = async () => {
+    try {
+      if (token) {
+        await authService.logout(token);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      stopProactiveRefresh();
+      logout();
+      router.push("/login");
+      setMobileMenuOpen(false);
+    }
   };
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -120,12 +131,6 @@ export default function Header() {
                 </button>
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-card shadow-modal opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-1 group-hover:translate-y-0 z-50">
                   <div className="py-1">
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-primary-600"
-                    >
-                      Tài khoản
-                    </Link>
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-error-500 hover:bg-neutral-100"

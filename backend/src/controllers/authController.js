@@ -138,3 +138,12 @@ exports.refresh = async (req, res) => {
         return res.status(401).json({ message: 'Refresh token expired or invalid' });
     }
 }
+
+exports.logout = async (req, res) => {
+    try {
+        res.json({ message: 'Logout successful' });
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({ message: 'Logout failed' });
+    }
+}

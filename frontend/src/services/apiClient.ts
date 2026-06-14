@@ -44,6 +44,7 @@ function updateStoredTokens(token: string, refreshToken?: string | null) {
 
 function clearStoredAuth() {
   if (typeof window === "undefined") return;
+  stopProactiveRefresh();
   localStorage.removeItem("auth-storage");
   localStorage.setItem("auth-logout-at", String(Date.now()));
   useAuthStore.getState().logout();
@@ -60,6 +61,41 @@ function getTableSessionToken(tableId?: string): string | null {
 }
 
 let refreshPromise: Promise<string | null> | null = null;
+let refreshTimer: NodeJS.Timeout | null = null;
+
+// Access token expires in 15 minutes (from backend config)
+// We'll refresh 2 minutes before expiration to be safe
+const TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
+const REFRESH_BEFORE_MS = 2 * 60 * 1000; // 2 minutes before expiry
+const REFRESH_INTERVAL_MS = TOKEN_EXPIRY_MS - REFRESH_BEFORE_MS; // 13 minutes
+
+export function startProactiveRefresh() {
+  if (typeof window === "undefined") return;
+  
+  // Clear any existing timer
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+  }
+  
+  // Set up periodic refresh
+  refreshTimer = setInterval(async () => {
+    const token = getToken();
+    if (token) {
+      console.log('[Proactive Refresh] Refreshing token before expiration');
+      await refreshAccessToken();
+    }
+  }, REFRESH_INTERVAL_MS);
+  
+  console.log('[Proactive Refresh] Started refresh timer with interval:', REFRESH_INTERVAL_MS / 1000, 'seconds');
+}
+
+export function stopProactiveRefresh() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+    console.log('[Proactive Refresh] Stopped refresh timer');
+  }
+}
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();

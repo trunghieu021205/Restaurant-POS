@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import FormInput from '@/components/forms/FormInput';
 import useAuthStore from '@/stores/auth';
 import { authService } from '@/services/auth';
+import { startProactiveRefresh } from '@/services/apiClient';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Vui lòng nhập email').email('Email không hợp lệ'),
@@ -38,6 +39,11 @@ export default function LoginPage() {
     try {
       const response = await authService.login(data);
       setAuth(response.token, response.user, response.refreshToken);
+      
+      // Start proactive token refresh for staff and admin users
+      if (response.refreshToken && ['staff', 'admin'].includes(response.user.role)) {
+        startProactiveRefresh();
+      }
       
       if (response.user && response.user.role === 'admin') {
         console.log("🎉 Quyền Admin được xác thực thành công. Điều hướng về Dashboard Thống kê...");
