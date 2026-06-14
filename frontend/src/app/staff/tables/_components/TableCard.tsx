@@ -85,7 +85,7 @@ export default function TableCard({ table, onReserve, onUnlock }: Props) {
         </button>
         <button
           onClick={() => onUnlock(table)}
-          disabled={table.billStatus === "open" || table.status === "maintenance"}
+          disabled={table.status === "available" || table.billStatus === "open" || table.status === "maintenance"}
           className="flex-1 rounded-btn bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50"
         >
           <LockOpen className="mr-1 inline" size={15} /> Mở khóa

@@ -63,22 +63,36 @@ let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
+  if (!refreshToken) {
+    console.warn('[refreshAccessToken] No refresh token available');
+    return null;
+  }
 
   if (!refreshPromise) {
+    console.log('[refreshAccessToken] Attempting to refresh access token');
     refreshPromise = fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     })
       .then(async (response) => {
-        if (!response.ok) return null;
+        if (!response.ok) {
+          console.error(`[refreshAccessToken] Refresh failed with status ${response.status}`);
+          return null;
+        }
         const data = await response.json();
-        if (!data?.token) return null;
+        if (!data?.token) {
+          console.error('[refreshAccessToken] Refresh response missing token');
+          return null;
+        }
+        console.log('[refreshAccessToken] Refresh successful, updating tokens');
         updateStoredTokens(data.token, data.refreshToken);
         return data.token as string;
       })
-      .catch(() => null)
+      .catch((error) => {
+        console.error('[refreshAccessToken] Refresh error:', error);
+        return null;
+      })
       .finally(() => {
         refreshPromise = null;
       });

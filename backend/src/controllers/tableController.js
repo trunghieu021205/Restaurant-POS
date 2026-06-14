@@ -124,6 +124,12 @@ exports.unlockTable = async (req, res) => {
             return res.status(409).json({ message: 'Không thể mở khóa bàn đang bảo trì' });
         }
 
+        // Validate lý do mở khóa nếu có
+        const validUnlockReasons = ['system_error', 'customer_change_table'];
+        if (note && !validUnlockReasons.includes(note)) {
+            return res.status(400).json({ message: 'Lý do mở khóa không hợp lệ' });
+        }
+
         const openBill = await getOpenBillForTable(table._id);
         if (openBill && !confirmed) {
             return res.status(409).json({ message: 'Hóa đơn mở tồn tại. Yêu cầu xác nhận từ nhân viên.' });
