@@ -73,6 +73,14 @@ export default function ScanQRPage() {
           return;
         }
 
+        if (table.status === "maintenance") {
+          setScanError(
+            `Bàn số ${table.number} đang bảo trì. Vui lòng quét bàn khác hoặc liên hệ nhân viên.`,
+          );
+          setScanStatus(null);
+          return;
+        }
+
         const href = `/table/${encodeURIComponent(parsed.tableId)}?qrToken=${encodeURIComponent(parsed.qrToken)}`;
         router.push(href);
       } catch (error) {

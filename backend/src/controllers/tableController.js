@@ -83,6 +83,9 @@ exports.reserveTable = async (req, res) => {
         if (table.status === 'occupied') {
             return res.status(409).json({ message: 'Cannot reserve an occupied table' });
         }
+        if (table.status === 'maintenance') {
+            return res.status(409).json({ message: 'Không thể đặt bàn đang bảo trì' });
+        }
 
         const fromStatus = table.status;
         table.status = 'reserved';
@@ -116,6 +119,10 @@ exports.unlockTable = async (req, res) => {
         const { confirmed = false, note = '' } = req.body;
         const table = await resolveTableByIdentifier(tableId);
         if (!table) return res.status(404).json({ message: 'Bàn không tồn tại' });
+
+        if (table.status === 'maintenance') {
+            return res.status(409).json({ message: 'Không thể mở khóa bàn đang bảo trì' });
+        }
 
         const openBill = await getOpenBillForTable(table._id);
         if (openBill && !confirmed) {

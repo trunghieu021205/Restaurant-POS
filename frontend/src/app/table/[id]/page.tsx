@@ -105,6 +105,15 @@ export default function TablePage({ params }: { params: Params }) {
         return;
       }
 
+      if (resolvedTable.status === "maintenance") {
+        setTableOk(false);
+        setAccessDenied(`Bàn số ${resolvedTable.number} đang bảo trì. Vui lòng liên hệ nhân viên.`);
+        setTable(null);
+        setTableId(null);
+        clearTableSession(id);
+        return;
+      }
+
       setTableOk(true);
       setAccessDenied(null);
       setTable(resolvedTable);
