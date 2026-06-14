@@ -180,13 +180,14 @@ exports.deleteTable = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
     try {
-        // Chỉ lấy user và staff, không lấy admin khác để tránh tự khóa tài khoản
-        const users = await User.find({ role: { $ne: 'admin' } }).select('-password').sort({ createdAt: -1 });
+        const users = await User.find({ role: 'staff' })
+                                .select('-password')
+                                .sort({ createdAt: -1 });
         res.json(users);
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi lấy danh sách người dùng', error: error.message });
+        res.status(500).json({ message: 'Lỗi khi lấy danh sách nhân sự', error: error.message });
     }
-};
+};;
 
 exports.createStaff = async (req, res) => {
     try {

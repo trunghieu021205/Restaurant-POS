@@ -21,11 +21,12 @@ export default function AdminTablesPage() {
   const [tables, setTables] = useState<Table[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // MỚI: State lưu trữ danh sách số bàn đã có mã QR
+  const [generatedQRs, setGeneratedQRs] = useState<number[]>([]);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTable, setEditingTable] = useState<Table | null>(null);
-  
-  // Form State
   const [formData, setFormData] = useState({ number: "", capacity: "", status: "available" });
 
   useEffect(() => {
@@ -39,8 +40,18 @@ export default function AdminTablesPage() {
   const fetchTables = async () => {
     setIsLoading(true);
     try {
-      const data = await adminTablesService.getAll();
-      setTables(data);
+      // Chạy song song 2 API: Lấy thông tin Bàn & Kiểm tra file QR
+      const [tablesData, qrRes] = await Promise.all([
+        adminTablesService.getAll(),
+        fetch('/api/qr-file').catch(() => null)
+      ]);
+      
+      setTables(tablesData);
+
+      if (qrRes && qrRes.ok) {
+        const qrData = await qrRes.json();
+        setGeneratedQRs(qrData.generatedTables || []);
+      }
     } catch (error: any) {
       toast.error(error.message || "Lỗi tải danh sách bàn");
     } finally {
@@ -86,6 +97,14 @@ export default function AdminTablesPage() {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa Bàn ${number}?`)) return;
     try {
       await adminTablesService.delete(id);
+      
+      // Xóa luôn file ảnh QR cũ trong ổ cứng nếu có
+      await fetch('/api/qr-file', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number })
+      });
+
       toast.success("Xóa bàn thành công!");
       fetchTables();
     } catch (error: any) {
@@ -93,14 +112,11 @@ export default function AdminTablesPage() {
     }
   };
 
-  // Hàm tải mã QR
   const handleDownloadQR = async (id: string, number: number) => {
     try {
-      // 1. Lấy chuỗi mã QR dạng Base64 từ Backend Node.js
       const data = await adminTablesService.getQR(id);
       
       if (data && data.qrCode) {
-        // 2. Bắn chuỗi Base64 này lên API của Next.js để ghi thẳng vào ổ cứng
         const res = await fetch('/api/save-qr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -108,7 +124,9 @@ export default function AdminTablesPage() {
         });
 
         if (res.ok) {
-          toast.success(`Đã lưu trực tiếp mã QR vào thư mục table-qr! (Bàn ${number})`);
+          toast.success(`Đã tạo và lưu mã QR thành công (Bàn ${number})`);
+          // Cập nhật state để nút bị mờ đi ngay lập tức
+          setGeneratedQRs(prev => [...prev, number]); 
         } else {
           const errorData = await res.json();
           throw new Error(errorData.message || "Không thể lưu file");
@@ -154,44 +172,43 @@ export default function AdminTablesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {tables.map(table => (
-              <div key={table._id} className="bg-white rounded-xl p-5 border border-neutral-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-neutral-800">Bàn {table.number}</h3>
-                    <p className="text-sm text-neutral-500">Sức chứa: {table.capacity} người</p>
+            {tables.map(table => {
+              // Kiểm tra xem bàn này đã có file QR hay chưa
+              const hasQR = generatedQRs.includes(table.number);
+
+              return (
+                <div key={table._id} className="bg-white rounded-xl p-5 border border-neutral-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-neutral-800">Bàn {table.number}</h3>
+                      <p className="text-sm text-neutral-500">Sức chứa: {table.capacity} người</p>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${table.status === 'available' ? 'bg-green-100 text-green-700' : table.status === 'occupied' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {table.status === 'available' ? 'Trống' : table.status === 'occupied' ? 'Đang dùng' : 'Khác'}
+                    </span>
                   </div>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${table.status === 'available' ? 'bg-green-100 text-green-700' : table.status === 'occupied' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                    {table.status === 'available' ? 'Trống' : table.status === 'occupied' ? 'Đang dùng' : 'Khác'}
-                  </span>
+                  
+                  <div className="flex gap-2 justify-end mt-2 pt-4 border-t border-neutral-100">
+                    {/* Nút Tạo QR có logic Mờ/Sáng */}
+                    <button 
+                      onClick={() => !hasQR && handleDownloadQR(table._id, table.number)} 
+                      disabled={hasQR}
+                      title={hasQR ? "Bàn này đã được tạo QR Code" : "Tạo ảnh QR"}
+                      className={`p-2 rounded-lg transition-all ${
+                        hasQR 
+                          ? 'text-neutral-300 bg-neutral-50 cursor-not-allowed opacity-60' 
+                          : 'text-neutral-600 hover:text-blue-600 hover:bg-blue-50'
+                      }`}
+                    >
+                      <QrCode className="w-4 h-4" />
+                    </button>
+
+                    <button onClick={() => handleOpenModal(table)} title="Chỉnh sửa bàn" className="p-2 text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => handleDelete(table._id, table.number)} title="Xóa bàn" className="p-2 text-neutral-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </div>
-                
-                {/* 3 Nút thao tác: Tải QR, Sửa, Xóa */}
-                <div className="flex gap-2 justify-end mt-2 pt-4 border-t border-neutral-100">
-                  <button 
-                    onClick={() => handleDownloadQR(table._id, table.number)} 
-                    title="Tải ảnh QR"
-                    className="p-2 text-neutral-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <QrCode className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleOpenModal(table)} 
-                    title="Chỉnh sửa bàn"
-                    className="p-2 text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(table._id, table.number)} 
-                    title="Xóa bàn"
-                    className="p-2 text-neutral-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
