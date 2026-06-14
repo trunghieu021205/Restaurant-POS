@@ -122,6 +122,21 @@ exports.unlockTable = async (req, res) => {
             return res.status(409).json({ message: 'Hóa đơn mở tồn tại. Yêu cầu xác nhận từ nhân viên.' });
         }
 
+        // Nếu có bill mở, kiểm tra xem có đơn hàng active không
+        if (openBill) {
+            const activeOrderCount = await Order.countDocuments({
+                tableId: table._id,
+                billId: openBill._id,
+                status: { $ne: 'cancelled' }
+            });
+
+            if (activeOrderCount > 0) {
+                return res.status(409).json({ 
+                    message: 'Không thể mở khóa bàn khi khách đang có đơn hàng chưa thanh toán.' 
+                });
+            }
+        }
+
         const fromStatus = table.status;
         if (openBill) {
             openBill.customerName = undefined;

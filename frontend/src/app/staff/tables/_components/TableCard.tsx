@@ -27,6 +27,11 @@ const statusStyles: Record<
     card: "border-neutral-300 bg-neutral-100",
     dot: "bg-neutral-500",
   },
+  cleaning: {
+    label: "Đang dọn",
+    card: "border-blue-200 bg-blue-50",
+    dot: "bg-blue-500",
+  },
 };
 
 function formatMoney(value: number) {
@@ -74,13 +79,14 @@ export default function TableCard({ table, onReserve, onUnlock }: Props) {
         <button
           onClick={() => onReserve(table)}
           disabled={table.status === "occupied"}
-          className="flex-1 rounded-btn border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex-1 rounded-btn border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50"
         >
           Đặt trước
         </button>
         <button
           onClick={() => onUnlock(table)}
-          className="flex-1 rounded-btn bg-neutral-900 px-3 py-2 text-sm font-medium text-white"
+          disabled={table.billStatus === "open"}
+          className="flex-1 rounded-btn bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50"
         >
           <LockOpen className="mr-1 inline" size={15} /> Mở khóa
         </button>
