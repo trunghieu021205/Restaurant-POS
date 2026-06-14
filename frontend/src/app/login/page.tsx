@@ -6,14 +6,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 import FormInput from '@/components/forms/FormInput';
 import useAuthStore from '@/stores/auth';
 import { authService } from '@/services/auth';
 import { startProactiveRefresh } from '@/services/apiClient';
 
 const loginSchema = z.object({
-  email: z.string().min(1, 'Vui lòng nhập email').email('Email không hợp lệ'),
-  password: z.string().min(1, 'Vui lòng nhập mật khẩu'),
+  email: z.string().min(1, 'Email không được để trống').email('Email không hợp lệ'),
+  password: z.string().min(1, 'Mật khẩu không được để trống'),
 });
 
 type LoginFormInputs = z.infer<typeof loginSchema>;
@@ -21,6 +22,7 @@ type LoginFormInputs = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { setAuth } = useAuthStore();
   const router = useRouter();
 
@@ -113,15 +115,42 @@ export default function LoginPage() {
               autoComplete="email"
             />
 
-            <FormInput
-              label="Mật khẩu"
-              name="password" 
-              type="password"
-              register={register as any}
-              error={errors.password}
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-neutral-700 mb-1">
+                Mật khẩu
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  {...register('password')}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className={`w-full px-4 py-2.5 border rounded-btn bg-white text-neutral-800 placeholder-neutral-400 focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none transition-colors pr-12 ${
+                    errors.password ? 'border-error-500 focus:ring-error-400 focus:border-error-400' : 'border-neutral-300'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-error-500 text-sm mt-1 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
 
             <button
               type="submit"

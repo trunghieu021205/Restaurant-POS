@@ -1,15 +1,18 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const User = require('../models/User')
+const User = require('../models/User');
+const { encrypt, decrypt } = require('../utils/crypto');
 
 const ACCESS_TOKEN_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || '15m';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
 
 function buildUserPayload(user) {
+    // Encrypt the email before sending to frontend
+    const encryptedEmail = encrypt(user.email);
     return {
         id: user._id,
         name: user.name,
-        email: user.email,
+        encryptedEmail,
         role: user.role
     };
 }
@@ -92,7 +95,25 @@ exports.registerStaff = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        let email, password;
+        
+        // Decrypt the encrypted payload if present
+        if (req.body.encryptedData) {
+            try {
+                const decryptedData = decrypt(req.body.encryptedData);
+                const parsedData = JSON.parse(decryptedData);
+                email = parsedData.email;
+                password = parsedData.password;
+            } catch (decryptError) {
+                console.error('Decryption error:', decryptError);
+                return res.status(400).json({ message: 'Dữ liệu mã hóa không hợp lệ' });
+            }
+        } else {
+            // Fallback to unencrypted data for backward compatibility
+            email = req.body.email;
+            password = req.body.password;
+        }
+        
         if (!email || !password) {
             return res.status(400).json({ message: 'Thiếu email hoặc mật khẩu' });
         }
@@ -115,7 +136,7 @@ exports.refresh = async (req, res) => {
     try {
         const { refreshToken } = req.body;
         if (!refreshToken) {
-            return res.status(400).json({ message: 'Missing refresh token' });
+            return res.status(400).json({ message: 'Thiếu refresh token' });
         }
 
         const payload = jwt.verify(
@@ -124,26 +145,26 @@ exports.refresh = async (req, res) => {
         );
 
         if (payload.purpose !== 'refresh' || !['staff', 'admin'].includes(payload.role)) {
-            return res.status(401).json({ message: 'Invalid refresh token' });
+            return res.status(401).json({ message: 'Refresh token không hợp lệ' });
         }
 
         const user = await User.findById(payload.id);
         if (!user || user.role !== payload.role || !['staff', 'admin'].includes(user.role)) {
-            return res.status(401).json({ message: 'Invalid refresh token' });
+            return res.status(401).json({ message: 'Refresh token không hợp lệ' });
         }
 
         return res.json(buildAuthResponse(user));
     } catch (error) {
         console.error('Refresh token error:', error);
-        return res.status(401).json({ message: 'Refresh token expired or invalid' });
+        return res.status(401).json({ message: 'Refresh token hết hạn hoặc không hợp lệ' });
     }
 }
 
 exports.logout = async (req, res) => {
     try {
-        res.json({ message: 'Logout successful' });
+        res.json({ message: 'Đăng xuất thành công' });
     } catch (error) {
         console.error('Logout error:', error);
-        res.status(500).json({ message: 'Logout failed' });
+        res.status(500).json({ message: 'Đăng xuất thất bại' });
     }
 }
