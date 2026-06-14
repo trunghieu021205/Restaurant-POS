@@ -1,5 +1,8 @@
 const Order = require('../models/Order');
 const Bill = require('../models/Bill');
+const User = require('../models/User');
+const Table = require('../models/Table');
+const bcrypt = require('bcryptjs');
 
 exports.getStats = async (req, res) => {
     try {
@@ -121,5 +124,131 @@ exports.getStats = async (req, res) => {
     } catch (error) {
         console.error('Get stats error:', error);
         return res.status(500).json({ message: 'Không thể tải dữ liệu thống kê' });
+    }
+};
+exports.getAllTablesAdmin = async (req, res) => {
+    try {
+        const tables = await Table.find().sort({ number: 1 });
+        res.json(tables);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi lấy danh sách bàn', error: error.message });
+    }
+};
+
+exports.createTable = async (req, res) => {
+    try {
+        const { number, capacity } = req.body;
+        const existingTable = await Table.findOne({ number });
+        if (existingTable) return res.status(400).json({ message: 'Số bàn này đã tồn tại' });
+
+        const table = await Table.create({ number, capacity });
+        res.status(201).json({ message: 'Thêm bàn thành công', table });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi tạo bàn', error: error.message });
+    }
+};
+
+exports.updateTable = async (req, res) => {
+    try {
+        const { capacity, status } = req.body;
+        const table = await Table.findByIdAndUpdate(
+            req.params.id, 
+            { capacity, status }, 
+            { new: true }
+        );
+        if (!table) return res.status(404).json({ message: 'Không tìm thấy bàn' });
+        res.json({ message: 'Cập nhật bàn thành công', table });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi cập nhật bàn', error: error.message });
+    }
+};
+
+exports.deleteTable = async (req, res) => {
+    try {
+        // Có thể cần check xem bàn có đơn hàng nào chưa thanh toán không trước khi xóa
+        const table = await Table.findByIdAndDelete(req.params.id);
+        if (!table) return res.status(404).json({ message: 'Không tìm thấy bàn' });
+        res.json({ message: 'Xóa bàn thành công' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi xóa bàn', error: error.message });
+    }
+};
+
+// ==========================================
+// QUẢN LÝ NGƯỜI DÙNG / STAFF
+// ==========================================
+
+exports.getAllUsers = async (req, res) => {
+    try {
+        // Chỉ lấy user và staff, không lấy admin khác để tránh tự khóa tài khoản
+        const users = await User.find({ role: { $ne: 'admin' } }).select('-password').sort({ createdAt: -1 });
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi lấy danh sách người dùng', error: error.message });
+    }
+};
+
+exports.createStaff = async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+        
+        const existingUser = await User.findOne({ email });
+        if (existingUser) return res.status(400).json({ message: 'Email đã được sử dụng' });
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const newStaff = await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            role: 'staff',
+            isActive: true
+        });
+
+        res.status(201).json({ message: 'Tạo tài khoản Staff thành công', user: { id: newStaff._id, name, email } });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi tạo nhân viên', error: error.message });
+    }
+};
+
+exports.toggleUserStatus = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+
+        user.isActive = !user.isActive; // Đảo ngược trạng thái
+        await user.save();
+
+        res.json({ message: user.isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản', isActive: user.isActive });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi cập nhật trạng thái', error: error.message });
+    }
+};
+
+exports.deleteUser = async (req, res) => {
+    try {
+        const user = await User.findByIdAndDelete(req.params.id);
+        if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+        res.json({ message: 'Đã xóa tài khoản vĩnh viễn' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi xóa tài khoản', error: error.message });
+    }
+};
+
+exports.resetUserPassword = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+
+        // Mật khẩu mặc định khi reset
+        const defaultPassword = 'Password@123';
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(defaultPassword, salt);
+        
+        await user.save();
+        res.json({ message: `Reset mật khẩu thành công. Mật khẩu mới là: ${defaultPassword}` });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi reset mật khẩu', error: error.message });
     }
 };
