@@ -1,4 +1,4 @@
-// components/admin/menu/MenuForm.tsx
+// components/admin/menu/CategoryForm.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,92 +6,69 @@ import { useForm } from "react-hook-form";
 import { Sheet, SheetContent } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
-import { ImageUpload } from "./ImageUpload";
-import { MenuFormData, MenuItem, Category } from "@/types/menu";
-import { useCategories } from "@/hooks/useCategories";
-import { X, Save } from "lucide-react";
+import { Category } from "@/types/menu";
+import { X, Tag, Save } from "lucide-react";
 
-interface ExtendedMenuFormData extends MenuFormData {
-  imageFile?: File;
+interface CategoryFormData {
+  name: string;
+  description?: string;
+  isActive: boolean;
+  orderIndex: number;
 }
 
-interface MenuFormProps {
+interface CategoryFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: ExtendedMenuFormData) => Promise<void>;
-  initialData?: MenuItem | null;
+  onSubmit: (data: CategoryFormData) => Promise<void>;
+  initialData?: Category | null;
   isLoading?: boolean;
-  categories: Category[];
 }
 
-export function MenuForm({
+export function CategoryForm({
   open,
   onOpenChange,
   onSubmit,
   initialData,
   isLoading,
-  categories,
-}: MenuFormProps) {
+}: CategoryFormProps) {
   const isEditing = !!initialData;
-  const { isLoading: categoriesLoading } = useCategories(true);
-  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
     formState: { errors, isSubmitting },
-  } = useForm<MenuFormData>({
+  } = useForm<CategoryFormData>({
     defaultValues: {
       name: "",
-      price: 0,
       description: "",
-      imageUrl: "",
-      categoryId: "",
-      isAvailable: true,
-      isVisibleToday: false,
+      isActive: true,
+      orderIndex: 0,
     },
   });
-
-  const imageUrlValue = watch("imageUrl");
 
   useEffect(() => {
     if (initialData) {
       reset({
         name: initialData.name,
-        price: initialData.price,
-        description: initialData.description,
-        imageUrl: initialData.imageUrl || "",
-        categoryId: initialData.categoryId,
-        isAvailable: initialData.isAvailable ?? true,
-        isVisibleToday: initialData.isVisibleToday ?? false,
+        description: initialData.description || "",
+        isActive: initialData.isActive,
+        orderIndex: initialData.orderIndex,
       });
     } else {
       reset({
         name: "",
-        price: 0,
         description: "",
-        imageUrl: "",
-        categoryId: "",
-        isAvailable: true,
-        isVisibleToday: false,
+        isActive: true,
+        orderIndex: 0,
       });
     }
-    setImageFile(null);
   }, [initialData, reset, open]);
 
-  const handleFormSubmit = async (data: MenuFormData) => {
-    const submitData: ExtendedMenuFormData = {
-      ...data,
-      imageFile: imageFile || undefined,
-    };
-
-    await onSubmit(submitData);
+  const handleFormSubmit = async (data: CategoryFormData) => {
+    await onSubmit(data);
     onOpenChange(false);
     reset();
-    setImageFile(null);
   };
 
   return (
@@ -102,7 +79,14 @@ export function MenuForm({
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-neutral-200 bg-neutral-50 sticky top-0 z-10">
               <h2 className="text-base sm:text-lg md:text-xl font-bold text-neutral-800">
-                {isEditing ? "✏️ Chỉnh sửa món ăn" : "🍽️ Thêm món mới"}
+                {isEditing ? (
+                  <>✏️ Chỉnh sửa danh mục</>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-5 h-5 sm:w-6 sm:h-6 text-primary-500" />
+                    Thêm danh mục mới
+                  </div>
+                )}
               </h2>
               <button
                 onClick={() => onOpenChange(false)}
@@ -115,60 +99,34 @@ export function MenuForm({
             {/* Body */}
             <ScrollArea className="flex-1 px-4 py-4 sm:px-6 sm:py-5 bg-white">
               <form
-                id="menu-form"
+                id="category-form"
                 onSubmit={handleSubmit(handleFormSubmit)}
                 className="space-y-4 sm:space-y-5"
               >
                 <div className="grid grid-cols-1 gap-4 sm:gap-5">
-                  {/* Tên món */}
+                  {/* Tên danh mục */}
                   <div>
                     <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
-                      Tên món <span className="text-red-500">*</span>
+                      Tên danh mục <span className="text-red-500">*</span>
                     </label>
                     <input
                       {...register("name", {
-                        required: "Tên món không được để trống",
+                        required: "Tên danh mục không được để trống",
                         minLength: {
                           value: 2,
-                          message: "Tên món phải có ít nhất 2 ký tự",
+                          message: "Tên danh mục phải có ít nhất 2 ký tự",
                         },
                         maxLength: {
-                          value: 100,
-                          message: "Tên món không được quá 100 ký tự",
+                          value: 50,
+                          message: "Tên danh mục không được quá 50 ký tự",
                         },
                       })}
                       className="w-full px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg border border-neutral-300 bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-neutral-800 text-sm sm:text-base"
-                      placeholder="Nhập tên món ăn"
+                      placeholder="Nhập tên danh mục"
                     />
                     {errors.name && (
                       <p className="text-red-500 text-xs mt-1">
                         {errors.name.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Giá */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
-                      Giá (VNĐ) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      {...register("price", {
-                        required: "Giá không được để trống",
-                        min: { value: 1000, message: "Giá tối thiểu 1,000đ" },
-                        max: {
-                          value: 99999999,
-                          message: "Giá không được quá 99,999,999đ",
-                        },
-                        valueAsNumber: true,
-                      })}
-                      className="w-full px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg border border-neutral-300 bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-neutral-800 text-sm sm:text-base"
-                      placeholder="Nhập giá"
-                    />
-                    {errors.price && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.price.message}
                       </p>
                     )}
                   </div>
@@ -181,13 +139,13 @@ export function MenuForm({
                     <textarea
                       {...register("description", {
                         maxLength: {
-                          value: 500,
-                          message: "Mô tả không được quá 500 ký tự",
+                          value: 200,
+                          message: "Mô tả không được quá 200 ký tự",
                         },
                       })}
                       rows={3}
                       className="w-full px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg border border-neutral-300 bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-neutral-800 resize-none text-sm sm:text-base"
-                      placeholder="Mô tả ngắn về món ăn"
+                      placeholder="Mô tả ngắn về danh mục"
                     />
                     {errors.description && (
                       <p className="text-red-500 text-xs mt-1">
@@ -196,29 +154,32 @@ export function MenuForm({
                     )}
                   </div>
 
-                  {/* Danh mục & Trạng thái */}
+                  {/* Thứ tự hiển thị & Trạng thái */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                     <div>
                       <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
-                        Danh mục
+                        Thứ tự hiển thị
                       </label>
-                      <select
-                        {...register("categoryId", {
-                          required: "Vui lòng chọn danh mục",
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        {...register("orderIndex", {
+                          valueAsNumber: true,
+                          min: {
+                            value: 0,
+                            message: "Thứ tự hiển thị không được âm",
+                          },
+                          max: {
+                            value: 999,
+                            message: "Thứ tự hiển thị không được quá 999",
+                          },
                         })}
                         className="w-full px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg border border-neutral-300 bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-neutral-800 text-sm sm:text-base"
-                        disabled={categoriesLoading}
-                      >
-                        <option value="">Chọn danh mục</option>
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.categoryId && (
+                        placeholder="0"
+                      />
+                      {errors.orderIndex && (
                         <p className="text-red-500 text-xs mt-1">
-                          {errors.categoryId.message}
+                          {errors.orderIndex.message}
                         </p>
                       )}
                     </div>
@@ -227,52 +188,17 @@ export function MenuForm({
                       <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
                         Trạng thái
                       </label>
-                      <div className="flex flex-wrap gap-3 sm:gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            {...register("isAvailable")}
-                            className="w-4 h-4 text-primary-500 focus:ring-primary-500 rounded"
-                          />
-                          <span className="text-sm text-neutral-700">
-                            Còn món
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Món hôm nay */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
-                      Món hôm nay
-                    </label>
-                    <div className="flex flex-wrap gap-3 sm:gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className="flex items-center gap-2 cursor-pointer px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50 transition-colors">
                         <input
                           type="checkbox"
-                          {...register("isVisibleToday")}
+                          {...register("isActive")}
                           className="w-4 h-4 text-primary-500 focus:ring-primary-500 rounded"
                         />
                         <span className="text-sm text-neutral-700">
-                          Hiển thị hôm nay
+                          Danh mục hoạt động
                         </span>
                       </label>
                     </div>
-                  </div>
-
-                  {/* Upload ảnh */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
-                      Ảnh món ăn
-                    </label>
-                    <ImageUpload
-                      value={imageUrlValue || ""}
-                      onChange={(url, file) => {
-                        setValue("imageUrl", url, { shouldDirty: true });
-                        setImageFile(file || null);
-                      }}
-                    />
                   </div>
                 </div>
               </form>
@@ -290,12 +216,12 @@ export function MenuForm({
               </Button>
               <Button
                 type="submit"
-                form="menu-form"
+                form="category-form"
                 disabled={isLoading || isSubmitting}
                 className="w-full sm:w-auto bg-primary-500 hover:bg-primary-600 text-white gap-2 flex items-center justify-center text-sm sm:text-base"
               >
                 <Save className="w-4 h-4" />
-                {isEditing ? "Cập nhật" : "Thêm món"}
+                {isEditing ? "Cập nhật" : "Thêm danh mục"}
               </Button>
             </div>
           </div>

@@ -25,10 +25,26 @@ exports.getAllCategories = async (req, res) => {
 // POST /api/admin/categories
 exports.createCategory = async (req, res) => {
     try {
-        const { name, description, image, isActive, orderIndex } = req.body;
+        const { name, description, isActive, orderIndex } = req.body;
 
         if (!name || name.trim() === '') {
             return res.status(400).json({ message: 'Tên danh mục là bắt buộc' });
+        }
+
+        if (name.trim().length < 2) {
+            return res.status(400).json({ message: 'Tên danh mục phải có ít nhất 2 ký tự' });
+        }
+
+        if (name.trim().length > 50) {
+            return res.status(400).json({ message: 'Tên danh mục không được quá 50 ký tự' });
+        }
+
+        if (description && description.length > 200) {
+            return res.status(400).json({ message: 'Mô tả không được quá 200 ký tự' });
+        }
+
+        if (orderIndex !== undefined && (orderIndex < 0 || orderIndex > 999)) {
+            return res.status(400).json({ message: 'Thứ tự hiển thị phải từ 0 đến 999' });
         }
 
         const existingCategory = await Categories.findOne({ name: name.trim() });
@@ -39,7 +55,6 @@ exports.createCategory = async (req, res) => {
         const newCategory = await Categories.create({
             name: name.trim(),
             description: description ? description.trim() : '',
-            image: image || '',
             isActive: isActive !== undefined ? isActive : true,
             orderIndex: orderIndex !== undefined ? orderIndex : 0
         });
@@ -58,11 +73,17 @@ exports.updateCategory = async (req, res) => {
             return res.status(404).json({ message: 'Danh mục không hợp lệ' });
         }
 
-        const { name, description, image, isActive, orderIndex } = req.body;
+        const { name, description, isActive, orderIndex } = req.body;
 
         if (name) {
             if (name.trim() === '') {
                 return res.status(400).json({ message: 'Tên danh mục không được để trống' });
+            }
+            if (name.trim().length < 2) {
+                return res.status(400).json({ message: 'Tên danh mục phải có ít nhất 2 ký tự' });
+            }
+            if (name.trim().length > 50) {
+                return res.status(400).json({ message: 'Tên danh mục không được quá 50 ký tự' });
             }
             const existingCategory = await Categories.findOne({ 
                 name: name.trim(), _id: { $ne: req.params.id } 
@@ -74,10 +95,19 @@ exports.updateCategory = async (req, res) => {
 
         const updateData = {};
         if (name !== undefined) updateData.name = name.trim();
-        if (description !== undefined) updateData.description = description.trim();
-        if (image !== undefined) updateData.image = image;
+        if (description !== undefined) {
+            if (description.length > 200) {
+                return res.status(400).json({ message: 'Mô tả không được quá 200 ký tự' });
+            }
+            updateData.description = description.trim();
+        }
         if (isActive !== undefined) updateData.isActive = isActive;
-        if (orderIndex !== undefined) updateData.orderIndex = orderIndex;
+        if (orderIndex !== undefined) {
+            if (orderIndex < 0 || orderIndex > 999) {
+                return res.status(400).json({ message: 'Thứ tự hiển thị phải từ 0 đến 999' });
+            }
+            updateData.orderIndex = orderIndex;
+        }
 
         const updatedCategory = await Categories.findByIdAndUpdate(
             req.params.id,

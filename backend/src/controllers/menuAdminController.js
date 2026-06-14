@@ -46,7 +46,45 @@ exports.getAllMenuItems = async (req, res) => {
 // POST /api/admin/menu
 exports.createMenuItem = async (req, res) => {
   try {
-    const data = req.body;
+    const { name, price, description, categoryId, isAvailable, isVisibleToday } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ message: 'Tên món là bắt buộc' });
+    }
+
+    if (name.trim().length < 2) {
+      return res.status(400).json({ message: 'Tên món phải có ít nhất 2 ký tự' });
+    }
+
+    if (name.trim().length > 100) {
+      return res.status(400).json({ message: 'Tên món không được quá 100 ký tự' });
+    }
+
+    if (!price || price < 1000) {
+      return res.status(400).json({ message: 'Giá tối thiểu là 1,000đ' });
+    }
+
+    if (price > 99999999) {
+      return res.status(400).json({ message: 'Giá không được quá 99,999,999đ' });
+    }
+
+    if (description && description.length > 500) {
+      return res.status(400).json({ message: 'Mô tả không được quá 500 ký tự' });
+    }
+
+    if (!categoryId) {
+      return res.status(400).json({ message: 'Vui lòng chọn danh mục' });
+    }
+
+    const data = {
+      name: name.trim(),
+      price,
+      description: description ? description.trim() : '',
+      categoryId,
+      isAvailable: isAvailable !== undefined ? isAvailable : true,
+      isVisibleToday: isVisibleToday !== undefined ? isVisibleToday : false
+    };
+
     const item = await MenuItem.create(data);
     res.status(201).json(item.toJSON());
   } catch (err) {
@@ -58,7 +96,42 @@ exports.createMenuItem = async (req, res) => {
 // PUT /api/admin/menu/:id
 exports.updateMenuItem = async (req, res) => {
   try {
-    const item = await MenuItem.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { name, price, description, categoryId, isAvailable, isVisibleToday } = req.body;
+
+    if (name !== undefined) {
+      if (name.trim() === '') {
+        return res.status(400).json({ message: 'Tên món không được để trống' });
+      }
+      if (name.trim().length < 2) {
+        return res.status(400).json({ message: 'Tên món phải có ít nhất 2 ký tự' });
+      }
+      if (name.trim().length > 100) {
+        return res.status(400).json({ message: 'Tên món không được quá 100 ký tự' });
+      }
+    }
+
+    if (price !== undefined) {
+      if (price < 1000) {
+        return res.status(400).json({ message: 'Giá tối thiểu là 1,000đ' });
+      }
+      if (price > 99999999) {
+        return res.status(400).json({ message: 'Giá không được quá 99,999,999đ' });
+      }
+    }
+
+    if (description !== undefined && description.length > 500) {
+      return res.status(400).json({ message: 'Mô tả không được quá 500 ký tự' });
+    }
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (price !== undefined) updateData.price = price;
+    if (description !== undefined) updateData.description = description.trim();
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+    if (isVisibleToday !== undefined) updateData.isVisibleToday = isVisibleToday;
+
+    const item = await MenuItem.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
     if (!item) return res.status(404).json({ message: 'Menu item not found' });
     res.json(item.toJSON());
   } catch (err) {

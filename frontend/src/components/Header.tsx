@@ -38,7 +38,7 @@ export default function Header() {
         await authService.logout(token);
       }
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     } finally {
       stopProactiveRefresh();
       logout();
@@ -84,19 +84,19 @@ export default function Header() {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center space-x-2 text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors"
+            className="flex items-center space-x-2 text-2xl md:text-lg lg:text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors"
           >
-            <span className="text-3xl">🍕</span>
+            <span className="text-3xl md:text-2xl lg:text-3xl">🍕</span>
             <span className="hidden sm:inline">Restaurant</span>
           </Link>
 
           {/* Desktop nav — chỉ hiện với staff/admin */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center gap-4 lg:gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="relative text-neutral-600 hover:text-primary-600 transition-colors font-medium py-2 group"
+                className="relative whitespace-nowrap text-sm lg:text-base text-neutral-600 hover:text-primary-600 transition-colors font-medium py-2 group"
               >
                 {link.label}
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full" />

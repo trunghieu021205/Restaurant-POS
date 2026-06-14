@@ -42,9 +42,17 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
   );
 
   useEffect(() => {
-    if (open) document.addEventListener("keydown", handleKeyDown);
-    else document.removeEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    if (open) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden"; // Prevent scroll when sheet is open
+    } else {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
   }, [open, handleKeyDown]);
 
   return (
@@ -110,10 +118,12 @@ export function SheetContent({
       className={cn(
         "fixed z-(--z-modal) bg-background shadow-lg flex flex-col",
         isCenter
-          ? "inset-4 m-auto max-w-lg max-h-[90vh] rounded-2xl" // modal giữa
+          ? "inset-x-4 top-[10%] bottom-[10%] sm:inset-[10%] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-2xl lg:max-w-3xl w-auto md:w-full max-h-[80vh] sm:max-h-[85vh] rounded-2xl"
           : side === "bottom" && "inset-x-0 bottom-0 rounded-t-2xl",
-        side === "right" && "inset-y-0 right-0 w-3/4 max-w-sm",
-        side === "left" && "inset-y-0 left-0 w-3/4 max-w-sm",
+        side === "right" &&
+          "inset-y-0 right-0 w-full sm:w-3/4 md:w-2/3 lg:w-1/2 max-w-sm md:max-w-md lg:max-w-lg",
+        side === "left" &&
+          "inset-y-0 left-0 w-full sm:w-3/4 md:w-2/3 lg:w-1/2 max-w-sm md:max-w-md lg:max-w-lg",
         side === "top" && "inset-x-0 top-0 rounded-b-2xl",
         className,
       )}
@@ -123,13 +133,13 @@ export function SheetContent({
       variants={variants}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
     >
-      {/* Nút đóng (ẩn nếu side=center vì có thể tự tạo nút khác) – giữ lại hoặc ẩn tùy */}
+      {/* Nút đóng - responsive positioning */}
       {!isCenter && (
         <button
           onClick={() => onOpenChange(false)}
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 z-10"
+          className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 z-10 p-1 hover:bg-neutral-100"
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="sr-only">Close</span>
         </button>
       )}
@@ -147,7 +157,7 @@ export function SheetHeader({
   return (
     <div
       className={cn(
-        "flex flex-col space-y-2 text-center sm:text-left px-6 pt-6",
+        "flex flex-col space-y-2 text-center sm:text-left px-4 sm:px-6 pt-4 sm:pt-6",
         className,
       )}
       {...props}
@@ -165,7 +175,10 @@ export function SheetTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2
-      className={cn("text-lg font-semibold text-foreground", className)}
+      className={cn(
+        "text-lg sm:text-xl font-semibold text-foreground",
+        className,
+      )}
       {...props}
     >
       {children}
@@ -182,7 +195,7 @@ export function SheetFooter({
   return (
     <div
       className={cn(
-        "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 px-6 pb-6",
+        "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0 px-4 sm:px-6 pb-4 sm:pb-6",
         className,
       )}
       {...props}
@@ -192,7 +205,7 @@ export function SheetFooter({
   );
 }
 
-// SheetClose (nút đóng tùy chỉnh, có thể dùng thay cho nút mặc định)
+// SheetClose
 export function SheetClose({
   className,
   children,
