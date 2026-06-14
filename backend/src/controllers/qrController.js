@@ -5,7 +5,6 @@ const Bill = require('../models/Bill');
 const Order = require('../models/Order');
 const TableAuditLog = require('../models/TableAuditLog');
 const PaymentNotification = require('../models/PaymentNotification');
-const { getOrCreateOpenBillForTable } = require('../services/billService');
 const { getIO } = require('../socket');
 const { resolveTableByIdentifier } = require('../utils/resolveTable');
 
@@ -220,17 +219,12 @@ exports.checkInTable = async (req, res) => {
     table.checkedInAt = new Date();
     await table.save();
 
-    const bill = await getOrCreateOpenBillForTable(table, {
-      customerName: nextCustomerName,
-      customerPhone: nextCustomerPhone
-    });
-
     await TableAuditLog.create({
       tableId: table._id,
       action: 'check_in',
       fromStatus,
       toStatus: table.status,
-      metadata: { customerName: nextCustomerName, customerPhone: nextCustomerPhone, billId: bill._id }
+      metadata: { customerName: nextCustomerName, customerPhone: nextCustomerPhone }
     });
 
     try {
@@ -243,9 +237,9 @@ exports.checkInTable = async (req, res) => {
         customerPhone: table.customerPhone,
         checkedInAt: table.checkedInAt,
         reservedAt: table.reservedAt,
-        billId: bill._id.toString(),
-        billStatus: bill.status,
-        totalAmount: bill.totalAmount,
+        billId: null,
+        billStatus: null,
+        totalAmount: 0,
         updatedAt: table.updatedAt
       });
     } catch (emitError) {
@@ -334,6 +328,7 @@ exports.rejoinTableSession = async (req, res) => {
     }
 
     // Nếu identity khớp, kiểm tra xem có bill và orders không
+    // Nếu không có bill, nghĩa là chưa có đơn hàng nào được đặt
     if (!bill) {
       await resetEmptyTableSession(table, null, 'Rejoin requested for an occupied table without an open bill');
       return res.status(409).json({

@@ -2,7 +2,7 @@ const { randomUUID } = require('crypto');
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const Table = require('../models/Table');
-const { getOrCreateOpenBill, refreshBillTotals } = require('../services/billService');
+const { getOrCreateOpenBill, getOrCreateOpenBillForTable, refreshBillTotals } = require('../services/billService');
 const { resolveTableByIdentifier } = require('../utils/resolveTable');
 require('../models/User');
 const { getIO } = require('../socket');
@@ -57,7 +57,10 @@ exports.createOrder = async (req, res) => {
         });
 
         const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const bill = await getOrCreateOpenBill(table._id);
+        const bill = await getOrCreateOpenBillForTable(table, {
+            customerName: table.customerName,
+            customerPhone: table.customerPhone
+        });
 
         const order = await Order.create({
             orderNumber: `ORD-${randomUUID()}`,
