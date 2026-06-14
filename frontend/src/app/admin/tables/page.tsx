@@ -183,8 +183,18 @@ export default function AdminTablesPage() {
                       <h3 className="text-xl font-bold text-neutral-800">Bàn {table.number}</h3>
                       <p className="text-sm text-neutral-500">Sức chứa: {table.capacity} người</p>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${table.status === 'available' ? 'bg-green-100 text-green-700' : table.status === 'occupied' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {table.status === 'available' ? 'Trống' : table.status === 'occupied' ? 'Đang dùng' : 'Khác'}
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      table.status === 'available' ? 'bg-green-100 text-green-700' : 
+                      table.status === 'occupied' ? 'bg-red-100 text-red-700' : 
+                      table.status === 'reserved' ? 'bg-blue-100 text-blue-700' : 
+                      table.status === 'maintenance' ? 'bg-yellow-100 text-yellow-700' : 
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {table.status === 'available' ? 'Trống' : 
+                       table.status === 'occupied' ? 'Đang dùng' : 
+                       table.status === 'reserved' ? 'Đã đặt trước' : 
+                       table.status === 'maintenance' ? 'Bảo trì' : 
+                       'Khác'}
                     </span>
                   </div>
                   
