@@ -2,6 +2,7 @@ const QRCode = require('qrcode');
 const jwt = require('jsonwebtoken');
 const Table = require('../models/Table');
 const Bill = require('../models/Bill');
+const Order = require('../models/Order');
 const TableAuditLog = require('../models/TableAuditLog');
 const PaymentNotification = require('../models/PaymentNotification');
 const { getOrCreateOpenBillForTable } = require('../services/billService');
@@ -38,7 +39,11 @@ function verifyToken(token, purpose) {
 const PHONE_PATTERN = /^[0-9+\-\s().]{8,20}$/;
 
 function normalizeText(value) {
-  return typeof value === 'string' ? value.trim() : '';
+  return typeof value === 'string' ? value.trim().normalize('NFC') : '';
+}
+
+function normalizePhoneForCompare(phone) {
+  return normalizeText(phone).replace(/[\s\-().]/g, '');
 }
 
 function sameCustomer(left, right) {
@@ -47,6 +52,64 @@ function sameCustomer(left, right) {
 
 function isValidPhone(phone) {
   return PHONE_PATTERN.test(phone);
+}
+
+function buildTablePayload(table, bill = null) {
+  return {
+    id: table._id.toString(),
+    number: table.number,
+    capacity: table.capacity,
+    status: table.status,
+    customerName: table.customerName,
+    customerPhone: table.customerPhone,
+    checkedInAt: table.checkedInAt,
+    reservedAt: table.reservedAt,
+    billId: bill?._id?.toString?.() || null,
+    billStatus: bill?.status || null,
+    totalAmount: bill?.totalAmount || 0,
+    updatedAt: table.updatedAt
+  };
+}
+
+function emitStaffTableUpdate(table, bill = null) {
+  try {
+    getIO().to('staff').emit('table_status_updated', buildTablePayload(table, bill));
+  } catch (emitError) {
+    console.error('Emit table_status_updated failed:', emitError);
+  }
+}
+
+async function resetEmptyTableSession(table, bill, reason) {
+  const fromStatus = table.status;
+
+  if (bill && bill.status === 'open') {
+    bill.status = 'cancelled';
+    bill.customerName = undefined;
+    bill.customerPhone = undefined;
+    await bill.save();
+  }
+
+  table.status = 'available';
+  table.customerName = undefined;
+  table.customerPhone = undefined;
+  table.reservedAt = undefined;
+  table.checkedInAt = undefined;
+  await table.save();
+
+  await TableAuditLog.create({
+    tableId: table._id,
+    action: 'unlock',
+    fromStatus,
+    toStatus: table.status,
+    note: reason,
+    metadata: {
+      automatic: true,
+      billId: bill?._id,
+      reason
+    }
+  });
+
+  emitStaffTableUpdate(table, null);
 }
 
 exports.getTableQR = async (req, res) => {
@@ -258,19 +321,46 @@ exports.rejoinTableSession = async (req, res) => {
       return res.status(404).json({ message: 'Bàn không tồn tại' });
     }
 
-    if (table.status !== 'occupied' || !table.checkedInAt) {
-      return res.status(409).json({ message: 'Phiên bàn không còn hoạt động' });
-    }
-
     const bill = await Bill.findOne({ tableId: table._id, status: 'open' }).sort({ createdAt: -1 });
-    if (!bill) {
-      return res.status(409).json({ message: 'Không tìm thấy phiên hóa đơn đang mở' });
-    }
-
-    const nameMatches = sameCustomer(table.customerName || bill.customerName, customerName);
-    const phoneMatches = normalizeText(table.customerPhone || bill.customerPhone) === customerPhone;
+    const nameMatches = sameCustomer(table.customerName || bill?.customerName, customerName);
+    const phoneMatches = normalizePhoneForCompare(table.customerPhone || bill?.customerPhone) === normalizePhoneForCompare(customerPhone);
+    
     if (!nameMatches || !phoneMatches) {
       return res.status(403).json({ message: 'Thông tin khách hàng không khớp với phiên bàn hiện tại' });
+    }
+
+    // Nếu identity khớp, kiểm tra xem có bill và orders không
+    if (!bill) {
+      await resetEmptyTableSession(table, null, 'Rejoin requested for an occupied table without an open bill');
+      return res.status(409).json({
+        code: 'EMPTY_SESSION_RESET',
+        message: 'Phiên bàn chưa có món nên đã được mở lại. Vui lòng quét QR để bắt đầu phiên mới.'
+      });
+    }
+
+    const activeOrderCount = await Order.countDocuments({
+      tableId: table._id,
+      billId: bill._id,
+      status: { $ne: 'cancelled' }
+    });
+
+    if (activeOrderCount === 0) {
+      await resetEmptyTableSession(table, bill, 'Rejoin requested for an empty table session');
+      return res.status(409).json({
+        code: 'EMPTY_SESSION_RESET',
+        message: 'Phiên bàn chưa có món nên đã được mở lại. Vui lòng quét QR để bắt đầu phiên mới.'
+      });
+    }
+
+    // Nếu có active orders, cho phép rejoin ngay cả khi table status không phải occupied
+    // (có thể do lỗi hệ thống khiến status bị thay đổi)
+    if (table.status !== 'occupied' || !table.checkedInAt) {
+      // Tự động khôi phục status nếu có active orders
+      table.status = 'occupied';
+      table.customerName = bill.customerName || table.customerName;
+      table.customerPhone = bill.customerPhone || table.customerPhone;
+      table.checkedInAt = table.checkedInAt || new Date();
+      await table.save();
     }
 
     return res.json({

@@ -14,7 +14,11 @@ import ErrorFallback from "@/components/ErrorFallback";
 import { BillSheet } from "@/components/bill/BillSheet";
 import { useTodayMenu } from "@/hooks/useTodayMenu";
 import type { ResolvedTable } from "@/services/table";
-import { checkInTableByQr, rejoinTableSession, validateTableSession } from "@/services/qr";
+import {
+  checkInTableByQr,
+  rejoinTableSession,
+  validateTableSession,
+} from "@/services/qr";
 import { io } from "socket.io-client";
 import { useCategories } from "@/hooks/useCategories";
 import MenuCategoryFilter from "./MenuCategoryFilter";
@@ -64,13 +68,30 @@ export default function TablePage({ params }: { params: Params }) {
       try {
         const existingSession = getTableSession(id)?.token;
 
-        if (!qrToken && existingSession) {
+        // Ưu tiên dùng sessionToken đã lưu, chỉ dùng qrToken nếu không có session
+        if (existingSession) {
           const validated = await validateTableSession(id, existingSession);
           resolvedTable = validated.table;
+        } else if (qrToken) {
+          // Nếu không có session nhưng có qrToken, cần check-in mới
+          setTableOk(false);
+          setAccessDenied(null);
+          setTable(null);
+          setTableId(null);
+          return;
         }
       } catch (e) {
-        console.error("table access validation failed:", e);
-        denialMessage = e instanceof Error ? e.message : denialMessage;
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        // Nếu session không còn hoạt động, xóa session cũ và cho phép check-in lại
+        if (
+          errorMessage.includes("Phiên làm việc của bàn không còn hoạt động")
+        ) {
+          clearTableSession(id);
+          denialMessage = null; // Không hiển thị lỗi, cho phép check-in lại với qrToken
+        } else {
+          console.error("table access validation failed:", e);
+          denialMessage = errorMessage;
+        }
         resolvedTable = null;
       }
 
@@ -102,10 +123,10 @@ export default function TablePage({ params }: { params: Params }) {
 
   // Lắng nghe sự kiện payment_completed để tự redirect về home
   useEffect(() => {
-    if (!tableOk) return;
+    if (!tableOk || !table) return;
 
     const socket = io(API_ORIGIN);
-    socket.emit("join-table", id);
+    socket.emit("join-table", table.id);
 
     socket.on("payment_completed", () => {
       clearTableSession(id, table?.number);
@@ -118,9 +139,11 @@ export default function TablePage({ params }: { params: Params }) {
     return () => {
       socket.disconnect();
     };
-  }, [id, table?.number, tableOk, closeBill]);
+  }, [id, table?.id, table?.number, tableOk, closeBill]);
 
-  const restoreSession = (session: Awaited<ReturnType<typeof checkInTableByQr>>) => {
+  const restoreSession = (
+    session: Awaited<ReturnType<typeof checkInTableByQr>>,
+  ) => {
     saveTableSession({
       table: session.table,
       token: session.sessionToken,
@@ -166,7 +189,21 @@ export default function TablePage({ params }: { params: Params }) {
       });
       restoreSession(session);
     } catch (e) {
-      setAccessDenied(e instanceof Error ? e.message : "Khong the vao lai ban");
+      const errorMessage =
+        e instanceof Error ? e.message : "Không thể vào lại bàn";
+      // Check if this is an EMPTY_SESSION_RESET error
+      if (
+        errorMessage.includes("đã được mở lại") ||
+        errorMessage.includes("EMPTY_SESSION_RESET")
+      ) {
+        setAccessDenied(
+          "Bàn đã được mở lại cho khách mới. Vui lòng quét mã QR trên bàn để bắt đầu phiên mới.",
+        );
+        // Clear the stored session for this table
+        clearTableSession(id);
+      } else {
+        setAccessDenied(errorMessage);
+      }
     } finally {
       setCheckingIn(false);
     }
@@ -233,16 +270,6 @@ export default function TablePage({ params }: { params: Params }) {
     );
   }
 
-  if (tableOk === false) {
-    return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="font-medium text-red-500">
-          {accessDenied ?? "Không có bàn này"}
-        </p>
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
@@ -270,10 +297,10 @@ export default function TablePage({ params }: { params: Params }) {
             isExpanded ? "lg:pr-75" : "lg:pr-16"
           } lg:pl-16`}
         >
-          <h1 className="mb-4 text-xl font-bold text-neutral-800 sm:mb-6 sm:text-2xl md:text-3xl">
-            Bàn số {table?.number ?? id}
-          </h1>
-          <div className="mb-4 flex justify-end">
+          <div className="mb-4 sm:mb-6 flex justify-between items-center">
+            <h1 className="text-xl font-bold text-neutral-800 sm:text-2xl md:text-3xl">
+              Bàn số {table?.number ?? id}
+            </h1>
             <button
               onClick={handleRefreshMenu}
               disabled={menuRefreshing || isLoading}

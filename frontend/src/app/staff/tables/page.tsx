@@ -120,11 +120,17 @@ export default function StaffTablesPage() {
       id: string;
       status: "assisted" | "completed";
     }) => updatePaymentNotification(id, status),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["staff-payment-notifications"],
       });
       queryClient.invalidateQueries({ queryKey: ["table-audit-logs"] });
+      
+      if (variables.status === "assisted") {
+        toast.success("Đã xác nhận hỗ trợ yêu cầu thanh toán");
+      } else if (variables.status === "completed") {
+        toast.success("Đã xác nhận thanh toán thành công");
+      }
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Cập nhật thất bại"),
@@ -221,13 +227,13 @@ export default function StaffTablesPage() {
         </div>
 
         {/* Status Summary */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div className="grid grid-cols-3 gap-3 md:grid-cols-4">
           {Object.entries(statusStyles).map(([status, styles]) => (
             <div
               key={status}
               className="rounded-card border border-neutral-200 bg-white p-3"
             >
-              <div className="flex items-center gap-2 text-sm text-neutral-500">
+              <div className="flex items-center gap-2 text-sm  whitespace-nowrap text-neutral-500">
                 <span className={`h-2.5 w-2.5 rounded-full ${styles.dot}`} />
                 {styles.label}
               </div>

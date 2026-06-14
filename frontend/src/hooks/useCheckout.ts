@@ -28,11 +28,11 @@ export function useCheckout(tableId: string) {
       }
 
       if (billStatus !== "paid" && paymentMethod === "cash") {
-        toast.success("Đã gửi yêu cầu thanh toán đến nhân viên");
+        toast.success("Đã gửi yêu cầu thanh toán đến quầy");
       } else if (billStatus === "paid") {
         toast.success("Thanh toán thành công!");
       } else {
-        toast.success("Đã cập nhật thanh toán");
+        toast.success("Đã gửi yêu cầu thanh toán đến quầy");
       }
     },
   });

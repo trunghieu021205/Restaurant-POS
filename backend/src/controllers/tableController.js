@@ -22,18 +22,18 @@ function isValidPhone(phone) {
 }
 
 function emitStaff(event, payload) {
+    try {
+        getIO().to('staff').emit(event, payload);
+    } catch (emitError) {
+        console.error(`Emit ${event} failed:`, emitError);
+    }
+}
 
 function emitTable(tableId, event, payload) {
     try {
         getIO().to(`table_${tableId}`).emit(event, payload);
     } catch (emitError) {
         console.error(`Emit ${event} to table ${tableId} failed:`, emitError);
-    }
-}
-    try {
-        getIO().to('staff').emit(event, payload);
-    } catch (emitError) {
-        console.error(`Emit ${event} failed:`, emitError);
     }
 }
 
