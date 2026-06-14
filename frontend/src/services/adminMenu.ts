@@ -88,9 +88,8 @@ export const adminMenuService = {
         }
     },
 
-    // ✅ ĐÃ THÊM status?: string ĐỂ KHỬ SẠCH LỖI GẠCH ĐỎ TS(2339) KHI CREATE
     create: async (data: MenuFormData & { imageFile?: File; status?: string }): Promise<MenuItem> => {
-        let finalImageUrl = data.image;
+        let finalImageUrl = data.imageUrl || data.image || "";
 
         if (data.imageFile) {
             try {
@@ -119,19 +118,21 @@ export const adminMenuService = {
                 }
 
                 finalImageUrl = serverUrl;
-                console.log("📸 [DEBUG] Upload ảnh mới thành công. URL vĩnh viễn:", finalImageUrl);
             } catch (uploadErr: any) {
                 console.error("🚨 Lỗi trong tiến trình upload file ảnh:", uploadErr);
                 throw new Error(uploadErr.message || "Tiến trình tải ảnh lên máy chủ thất bại, dừng tạo món ăn.");
             }
         }
 
+        // Đọc trực tiếp giá trị boolean từ form gửi xuống
+        const isAvailableBool = data.isAvailable ?? true;
+
         const payload = {
             ...data,
             image: finalImageUrl,
             imageUrl: finalImageUrl, 
-            isAvailable: data.status === 'available', 
-            status: data.status 
+            isAvailable: isAvailableBool, 
+            status: isAvailableBool ? 'available' : 'unavailable' 
         };
 
         const res = await fetch(getBaseMenuUrl(), {
@@ -146,9 +147,9 @@ export const adminMenuService = {
         return res.json();
     },
 
-    // ✅ ĐÃ THÊM status?: string ĐỂ KHỬ SẠCH LỖI GẠCH ĐỎ TS(2339) KHI UPDATE
     update: async (id: string, data: MenuFormData & { imageFile?: File; status?: string }): Promise<MenuItem> => {
-        let finalImageUrl = data.image;
+        // Sửa lỗi đọc trường dữ liệu ảnh để nhận diện chuỗi rỗng "" chính xác khi xóa ảnh
+        let finalImageUrl = data.imageUrl !== undefined ? data.imageUrl : (data.image || "");
 
         if (data.imageFile) {
             try {
@@ -177,19 +178,21 @@ export const adminMenuService = {
                 }
 
                 finalImageUrl = serverUrl;
-                console.log("📸 [DEBUG] Cập nhật ảnh thành công. URL mới vĩnh viễn:", finalImageUrl);
             } catch (uploadErr: any) {
                 console.error("🚨 Lỗi trong tiến trình cập nhật file ảnh:", uploadErr);
                 throw new Error(uploadErr.message || "Lỗi cập nhật hình ảnh.");
             }
         }
 
+        // Đọc trực tiếp giá trị boolean từ form gửi xuống thay vì kiểm tra data.status
+        const isAvailableBool = data.isAvailable ?? true;
+
         const payload = {
             ...data,
             image: finalImageUrl,
             imageUrl: finalImageUrl,
-            isAvailable: data.status === 'available',
-            status: data.status
+            isAvailable: isAvailableBool,
+            status: isAvailableBool ? 'available' : 'unavailable'
         };
 
         const res = await fetch(`${getBaseMenuUrl()}/${id}`, {

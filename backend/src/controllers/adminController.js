@@ -16,9 +16,9 @@ exports.getStats = async (req, res) => {
         ]);
 
         const totalRevenue = revenueResult[0]?.totalRevenue || 0;
-        const paidOrders = revenueResult[0]?.paidBills || 0; // FE đang cần biến paidOrders
+        const paidOrders = revenueResult[0]?.paidBills || 0;
 
-        // 2. Tính số đơn hàng đang chờ (Đơn từ Customer/Staff chưa xác nhận/giao)
+        // 2. Tính số đơn hàng đang chờ
         const pendingOrders = await Order.countDocuments({ status: 'pending' });
 
         // 3. Top món ăn bán chạy nhất
@@ -76,28 +76,27 @@ exports.getStats = async (req, res) => {
                     revenue: { $sum: "$totalAmount" }
                 }
             },
-            { $sort: { "_id.dateValue": 1 } }, // Sắp xếp theo ngày tăng dần
+            { $sort: { "_id.dateValue": 1 } },
             {
                 $project: {
-                    _id: "$_id.dateString", // FE đang dùng trường _id để hiển thị nhãn "Ngày/Tháng"
+                    _id: "$_id.dateString",
                     revenue: 1
                 }
             }
         ]);
         
-        // Đảm bảo không bị lỗi nếu không có dữ liệu 7 ngày qua
         const chartData = chartDataRaw.length > 0 ? chartDataRaw : [];
 
         // 5. Nhật ký thanh toán gần đây (Log giao dịch)
         const recentBills = await Bill.find({ status: { $in: ['paid', 'open', 'cancelled'] } })
             .sort({ updatedAt: -1 })
             .limit(10)
-            .populate('tableId', 'name tableNumber'); // Populate để lấy số bàn
+            .populate('tableId', 'number'); // Cập nhật đúng trường 'number' từ Table Schema
 
         const recentPayments = recentBills.map(bill => {
-            // Xử lý lấy tên bàn (đề phòng schema Table dùng field 'name' hoặc 'tableNumber')
-            const tNumber = bill.tableId 
-                ? (bill.tableId.tableNumber || bill.tableId.name || 'N/A') 
+            // Lấy trực tiếp trường 'number' thay vì 'tableNumber'
+            const tNumber = bill.tableId && bill.tableId.number
+                ? bill.tableId.number 
                 : 'Mang về';
 
             return {

@@ -241,9 +241,7 @@ export function MenuForm({
                       value={imageUrlValue || ""}
                       onChange={(url, file) => {
                         setValue("imageUrl", url, { shouldDirty: true });
-                        if (file) {
-                          setImageFile(file);
-                        }
+                        setImageFile(file || null);
                       }}
                     />
                   </div>
