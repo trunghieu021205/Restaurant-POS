@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { adminTablesService } from "@/services/adminTables";
 import { toast } from "@/lib/toast";
-import { LayoutGrid, Plus, Edit, Trash2, X } from "lucide-react";
+import { LayoutGrid, Plus, Edit, Trash2, X, QrCode } from "lucide-react";
 import Skeleton from "@/components/ui/Skeleton";
 
 interface Table {
@@ -93,6 +93,34 @@ export default function AdminTablesPage() {
     }
   };
 
+  // Hàm tải mã QR
+  const handleDownloadQR = async (id: string, number: number) => {
+    try {
+      // 1. Lấy chuỗi mã QR dạng Base64 từ Backend Node.js
+      const data = await adminTablesService.getQR(id);
+      
+      if (data && data.qrCode) {
+        // 2. Bắn chuỗi Base64 này lên API của Next.js để ghi thẳng vào ổ cứng
+        const res = await fetch('/api/save-qr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ qrCode: data.qrCode, number })
+        });
+
+        if (res.ok) {
+          toast.success(`Đã lưu trực tiếp mã QR vào thư mục table-qr! (Bàn ${number})`);
+        } else {
+          const errorData = await res.json();
+          throw new Error(errorData.message || "Không thể lưu file");
+        }
+      } else {
+        throw new Error("Dữ liệu QR từ Server không hợp lệ");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Lỗi tải mã QR");
+    }
+  };
+
   if (authLoading || !user) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>;
 
   return (
@@ -137,9 +165,30 @@ export default function AdminTablesPage() {
                     {table.status === 'available' ? 'Trống' : table.status === 'occupied' ? 'Đang dùng' : 'Khác'}
                   </span>
                 </div>
+                
+                {/* 3 Nút thao tác: Tải QR, Sửa, Xóa */}
                 <div className="flex gap-2 justify-end mt-2 pt-4 border-t border-neutral-100">
-                  <button onClick={() => handleOpenModal(table)} className="p-2 text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete(table._id, table.number)} className="p-2 text-neutral-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  <button 
+                    onClick={() => handleDownloadQR(table._id, table.number)} 
+                    title="Tải ảnh QR"
+                    className="p-2 text-neutral-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <QrCode className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleOpenModal(table)} 
+                    title="Chỉnh sửa bàn"
+                    className="p-2 text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(table._id, table.number)} 
+                    title="Xóa bàn"
+                    className="p-2 text-neutral-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}

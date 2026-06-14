@@ -42,5 +42,12 @@ export const adminTablesService = {
         });
         if (!res.ok) throw new Error('Lỗi xóa bàn');
         return res.json();
+    },
+    getQR: async (id: string) => {
+        const baseUrl = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
+        // Gọi đến route quản lý QR của backend
+        const res = await fetch(`${baseUrl}/qr/table/${id}`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Không thể tạo mã QR cho bàn này');
+        return res.json();
     }
 };
