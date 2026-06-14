@@ -41,6 +41,8 @@ export default function Header() {
   const role = normalizeRole(user?.role);
   const isStaffOrAdmin = role === "staff" || role === "admin";
   const menuHref = role === "staff" ? "/staff/menu" : "/admin/menu";
+  
+  // Đã gỡ bỏ phần check trùng lặp, chỉ giữ lại đường dẫn /admin chính xác
   const navLinks = [
     ...(isStaffOrAdmin
       ? [{ href: "/staff/tables", label: "Quản lý bàn" }]
@@ -51,10 +53,7 @@ export default function Header() {
           { href: "/kitchen", label: "Bếp" },
         ]
       : []),
-    ...(role === "admin" ? [{ href: "/admin/stats", label: "Thống kê" }] : []),
-    ...(user?.role === "admin"
-      ? [{ href: "/admin", label: "Thống kê" }]
-      : []),
+    ...(role === "admin" ? [{ href: "/admin", label: "Thống kê" }] : []),
   ];
 
   return (
