@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, use, useState } from "react";
+import { useEffect, use, useState, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
@@ -31,17 +31,17 @@ import {
   getTableSession,
   saveTableSession,
 } from "@/lib/tableSession";
+import {
+  validateCustomerForm,
+  sanitizePhoneNumber,
+  type FormErrors,
+} from "@/lib/validation";
 
 const API_ORIGIN = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 ).replace(/\/api\/?$/, "");
 
 type Params = Promise<{ id: string }>;
-
-interface FormErrors {
-  customerName?: string;
-  customerPhone?: string;
-}
 
 export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
@@ -271,34 +271,19 @@ export default function TablePage({ params }: { params: Params }) {
     };
   }, [tableOk, hasActiveOrders, router, pathname]);
 
-  // Validate form fields
-  const validateForm = (): boolean => {
-    const errors: FormErrors = {};
-    let isValid = true;
-
-    // Validate customer name
-    if (!customerName || customerName.trim().length === 0) {
-      errors.customerName = "Vui lòng nhập họ tên của bạn";
-      isValid = false;
-    } else if (customerName.trim().length < 2) {
-      errors.customerName = "Họ tên phải có ít nhất 2 ký tự";
-      isValid = false;
-    } else if (customerName.trim().length > 100) {
-      errors.customerName = "Họ tên không được vượt quá 100 ký tự";
-      isValid = false;
-    }
-
-    // Validate phone number
-    if (!customerPhone || customerPhone.trim().length === 0) {
-      errors.customerPhone = "Vui lòng nhập số điện thoại";
-      isValid = false;
-    } else if (!/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(customerPhone.trim())) {
-      errors.customerPhone = "Số điện thoại không hợp lệ (VD: 0901234567)";
-      isValid = false;
-    }
-
+  const validateForm = useCallback((): boolean => {
+    const { isValid, errors } = validateCustomerForm({
+      customerName,
+      customerPhone,
+    });
     setFormErrors(errors);
     return isValid;
+  }, [customerName, customerPhone]);
+
+  const handlePhoneChange = (value: string) => {
+    const sanitized = sanitizePhoneNumber(value);
+    setCustomerPhone(sanitized);
+    if (formTouched.customerPhone) validateForm();
   };
 
   // Handle field blur for validation
@@ -474,12 +459,7 @@ export default function TablePage({ params }: { params: Params }) {
               Số điện thoại <span className="text-error-500">*</span>
               <input
                 value={customerPhone}
-                onChange={(event) => {
-                  // Only allow digits and +
-                  const value = event.target.value.replace(/[^\d+]/g, "");
-                  setCustomerPhone(value);
-                  if (formTouched.customerPhone) validateForm();
-                }}
+                onChange={(e) => handlePhoneChange(e.target.value)}
                 onBlur={() => handleFieldBlur("customerPhone")}
                 className={`mt-1 w-full rounded-btn border px-3 py-2 outline-none transition-colors ${
                   formTouched.customerPhone && formErrors.customerPhone
