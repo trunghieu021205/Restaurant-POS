@@ -11,6 +11,7 @@ interface Props {
 const UNLOCK_REASONS = [
   { value: "system_error", label: "Lỗi hệ thống" },
   { value: "customer_change_table", label: "Khách muốn đổi bàn" },
+  { value: "customer_cancel_reservation", label: "Khách huỷ đặt trước" },
 ];
 
 export default function UnlockTableModal({ table, onClose, onSubmit }: Props) {

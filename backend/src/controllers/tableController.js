@@ -125,7 +125,7 @@ exports.unlockTable = async (req, res) => {
         }
 
         // Validate lý do mở khóa nếu có
-        const validUnlockReasons = ['system_error', 'customer_change_table'];
+        const validUnlockReasons = ['system_error', 'customer_change_table', 'customer_cancel_reservation'];
         if (note && !validUnlockReasons.includes(note)) {
             return res.status(400).json({ message: 'Lý do mở khóa không hợp lệ' });
         }
