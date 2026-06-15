@@ -7,6 +7,7 @@ exports.getAllMenuItems = async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const search = req.query.search || '';
         const categoryId = req.query.category || '';
+        const status = req.query.status || '';
         
         let query = {};
         if (search) {
@@ -17,6 +18,12 @@ exports.getAllMenuItems = async (req, res) => {
         }
         if (categoryId && categoryId !== 'all') {
             query.categoryId = categoryId; 
+        }
+        
+        if (status === 'available') {
+            query.isAvailable = true;
+        } else if (status === 'unavailable') {
+            query.isAvailable = false;
         }
 
         const skip = (page - 1) * limit;
