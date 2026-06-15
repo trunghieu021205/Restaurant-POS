@@ -1,4 +1,7 @@
 const crypto = require('crypto');
+const moment = require('moment-timezone');
+
+const VN_TIMEZONE = 'Asia/Ho_Chi_Minh';
 
 function getConfig() {
     const required = ['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET', 'VNPAY_PAYMENT_URL', 'VNPAY_RETURN_URL'];
@@ -26,7 +29,8 @@ function pad(value) {
 }
 
 function formatVnpDate(date) {
-    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+    const m = moment.isMoment(date) ? date : moment(date);
+    return m.format('YYYYMMDDHHmmss');
 }
 
 function sortObject(input) {
@@ -53,8 +57,8 @@ function buildSignedQuery(params, secret) {
 
 function createPaymentUrl({ transactionCode, amount, ipAddress, orderInfo }) {
     const config = getConfig();
-    const now = new Date();
-    const expireAt = new Date(now.getTime() + 15 * 60 * 1000);
+    const now = moment().tz(VN_TIMEZONE);
+    const expireAt = now.clone().add(15, 'minutes');
     const params = {
         vnp_Version: config.version,
         vnp_Command: config.command,
