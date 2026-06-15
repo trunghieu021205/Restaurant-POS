@@ -5,7 +5,7 @@ export const showSuccessToast = (message: string) => {
   baseToast.success(message, {
     icon: '🛒',
     style: {
-      background: 'var(--color-primary-50)',
+      background: 'var(--color-primary-500)',
       color: 'var(--color-primary-800)',
       borderRadius: 'var(--radius-btn)',
       fontSize: '0.875rem',
@@ -16,8 +16,8 @@ export const showSuccessToast = (message: string) => {
 export const showErrorToast = (message: string) => {
   baseToast.error(message, {
     style: {
-      background: 'var(--color-error-50)',
-      color: 'var(--color-error-600)',
+      background: 'var(--color-error-500)',
+      color: 'var(--color-neutral-800)',
       borderRadius: 'var(--radius-btn)',
       fontSize: '0.875rem',
     },
@@ -29,8 +29,8 @@ export const showWarningToast = (message: string) => {
   baseToast(message, {
     icon: '⚠️',
     style: {
-      background: 'var(--color-warning-50)',
-      color: 'var(--color-warning-800)',
+      background: 'var(--color-warning-500)',
+      color: 'var(--color-neutral-800)',
       borderRadius: 'var(--radius-btn)',
       fontSize: '0.875rem',
       fontWeight: 500,

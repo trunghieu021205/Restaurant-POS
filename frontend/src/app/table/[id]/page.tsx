@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, use, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import MenuGrid from "@/components/menu/MenuGrid";
@@ -41,10 +41,12 @@ type Params = Promise<{ id: string }>;
 export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const qrToken = searchParams.get("qrToken");
   const { isOpen: billOpen, closeBill, setTableId } = useBillStore();
-  const { fetchCart, collapseCart } = useCartStore();
+  const { fetchCart, collapseCart, items } = useCartStore();
   const isExpanded = useCartStore((state) => state.isExpanded);
 
   const { menuItems, isLoading, isError, error, refetch } = useTodayMenu();
@@ -60,6 +62,17 @@ export default function TablePage({ params }: { params: Params }) {
   const [customerPhone, setCustomerPhone] = useState("");
   const [checkingIn, setCheckingIn] = useState(false);
   const [menuRefreshing, setMenuRefreshing] = useState(false);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [formTouched, setFormTouched] = useState<{
+    customerName: boolean;
+    customerPhone: boolean;
+  }>({
+    customerName: false,
+    customerPhone: false,
+  });
+
+  // Check if user has active unpaid orders
+  const hasActiveOrders = items.length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -149,10 +162,127 @@ export default function TablePage({ params }: { params: Params }) {
       window.location.href = "/";
     });
 
+    socket.on("table_unlocked", () => {
+      clearTableSession(id, table?.number);
+      clearAllTableSessions();
+      useCartStore.getState().resetLocalCart();
+      closeBill();
+      window.location.href = "/";
+    });
+
     return () => {
       socket.disconnect();
     };
   }, [id, table?.id, table?.number, tableOk, closeBill]);
+
+  // Prevent browser back button when has active orders
+  useEffect(() => {
+    if (!tableOk || !hasActiveOrders) return;
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (hasActiveOrders) {
+        event.preventDefault();
+        window.history.pushState(null, "", window.location.href);
+        alert(
+          "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
+        );
+      }
+    };
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [tableOk, hasActiveOrders]);
+
+  // Store active session state for Header to check
+  useEffect(() => {
+    if (tableOk && hasActiveOrders) {
+      sessionStorage.setItem("activeTableSession", "true");
+      sessionStorage.setItem("activeTableId", id);
+    } else {
+      sessionStorage.removeItem("activeTableSession");
+      sessionStorage.removeItem("activeTableId");
+    }
+
+    return () => {
+      sessionStorage.removeItem("activeTableSession");
+      sessionStorage.removeItem("activeTableId");
+    };
+  }, [tableOk, hasActiveOrders, id]);
+
+  // Prevent route changes when has active orders
+  useEffect(() => {
+    if (!tableOk || !hasActiveOrders) return;
+
+    const originalPush = router.push;
+    const originalReplace = router.replace;
+
+    router.push = (...args) => {
+      const targetPath = typeof args[0] === "string" ? args[0] : args[0]?.href;
+      if (targetPath && targetPath !== pathname) {
+        alert(
+          "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
+        );
+        return Promise.reject(new Error("Navigation blocked"));
+      }
+      return originalPush(...args);
+    };
+
+    router.replace = (...args) => {
+      const targetPath = typeof args[0] === "string" ? args[0] : args[0]?.href;
+      if (targetPath && targetPath !== pathname) {
+        alert(
+          "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
+        );
+        return Promise.reject(new Error("Navigation blocked"));
+      }
+      return originalReplace(...args);
+    };
+
+    return () => {
+      router.push = originalPush;
+      router.replace = originalReplace;
+    };
+  }, [tableOk, hasActiveOrders, router, pathname]);
+
+  // Validate form fields
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {};
+    let isValid = true;
+
+    // Validate customer name
+    if (!customerName || customerName.trim().length === 0) {
+      errors.customerName = "Vui lòng nhập họ tên của bạn";
+      isValid = false;
+    } else if (customerName.trim().length < 2) {
+      errors.customerName = "Họ tên phải có ít nhất 2 ký tự";
+      isValid = false;
+    } else if (customerName.trim().length > 100) {
+      errors.customerName = "Họ tên không được vượt quá 100 ký tự";
+      isValid = false;
+    }
+
+    // Validate phone number
+    if (!customerPhone || customerPhone.trim().length === 0) {
+      errors.customerPhone = "Vui lòng nhập số điện thoại";
+      isValid = false;
+    } else if (!/^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(customerPhone.trim())) {
+      errors.customerPhone = "Số điện thoại không hợp lệ (VD: 0901234567)";
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  };
+
+  // Handle field blur for validation
+  const handleFieldBlur = (field: "customerName" | "customerPhone") => {
+    setFormTouched((prev) => ({ ...prev, [field]: true }));
+    validateForm();
+  };
 
   const restoreSession = (
     session: Awaited<ReturnType<typeof checkInTableByQr>>,
@@ -175,6 +305,15 @@ export default function TablePage({ params }: { params: Params }) {
     event.preventDefault();
     if (!qrToken) return;
 
+    setFormTouched({
+      customerName: true,
+      customerPhone: true,
+    });
+
+    if (!validateForm()) {
+      return;
+    }
+
     setCheckingIn(true);
     setAccessDenied(null);
     try {
@@ -195,6 +334,16 @@ export default function TablePage({ params }: { params: Params }) {
 
     setCheckingIn(true);
     setAccessDenied(null);
+
+    setFormTouched({
+      customerName: true,
+      customerPhone: true,
+    });
+
+    if (!validateForm()) {
+      return;
+    }
+
     try {
       const session = await rejoinTableSession(id, {
         customerName,
@@ -247,36 +396,110 @@ export default function TablePage({ params }: { params: Params }) {
             <h1 className="text-2xl font-bold text-neutral-900">
               Thông tin khách hàng
             </h1>
-          </div>
-          {accessDenied && (
-            <p className="rounded-btn bg-error-500/10 px-3 py-2 text-sm text-error-600">
-              {accessDenied}
+            <p className="mt-1 text-sm text-neutral-500">
+              Vui lòng nhập đầy đủ thông tin để tiếp tục
             </p>
+          </div>
+
+          {accessDenied && (
+            <div className="rounded-btn bg-error-500/10 px-3 py-2 border border-error-200">
+              <p className="text-sm text-error-600">{accessDenied}</p>
+            </div>
           )}
-          <label className="block text-sm font-medium text-neutral-700">
-            Họ tên
-            <input
-              value={customerName}
-              onChange={(event) => setCustomerName(event.target.value)}
-              className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 outline-none focus:border-primary-500"
-              placeholder="Nguyễn Văn A"
-            />
-          </label>
-          <label className="block text-sm font-medium text-neutral-700">
-            Số điện thoại
-            <input
-              value={customerPhone}
-              onChange={(event) => setCustomerPhone(event.target.value)}
-              className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 outline-none focus:border-primary-500"
-              placeholder="0901234567"
-              required
-            />
-          </label>
+
+          {/* Customer Name Field */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700">
+              Họ tên <span className="text-error-500">*</span>
+              <input
+                value={customerName}
+                onChange={(event) => {
+                  setCustomerName(event.target.value);
+                  if (formTouched.customerName) validateForm();
+                }}
+                onBlur={() => handleFieldBlur("customerName")}
+                className={`mt-1 w-full rounded-btn border px-3 py-2 outline-none transition-colors ${
+                  formTouched.customerName && formErrors.customerName
+                    ? "border-error-500 focus:border-error-500 bg-error-50"
+                    : "border-neutral-200 focus:border-primary-500"
+                }`}
+                placeholder="Nguyễn Văn A"
+              />
+            </label>
+            {formTouched.customerName && formErrors.customerName && (
+              <p className="mt-1 text-sm text-error-600 flex items-center gap-1">
+                <svg
+                  className="w-4 h-4 shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {formErrors.customerName}
+              </p>
+            )}
+          </div>
+
+          {/* Phone Number Field */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700">
+              Số điện thoại <span className="text-error-500">*</span>
+              <input
+                value={customerPhone}
+                onChange={(event) => {
+                  // Only allow digits and +
+                  const value = event.target.value.replace(/[^\d+]/g, "");
+                  setCustomerPhone(value);
+                  if (formTouched.customerPhone) validateForm();
+                }}
+                onBlur={() => handleFieldBlur("customerPhone")}
+                className={`mt-1 w-full rounded-btn border px-3 py-2 outline-none transition-colors ${
+                  formTouched.customerPhone && formErrors.customerPhone
+                    ? "border-error-500 focus:border-error-500 bg-error-50"
+                    : "border-neutral-200 focus:border-primary-500"
+                }`}
+                placeholder="0901234567"
+                inputMode="tel"
+              />
+            </label>
+            {formTouched.customerPhone && formErrors.customerPhone && (
+              <p className="mt-1 text-sm text-error-600 flex items-center gap-1">
+                <svg
+                  className="w-4 h-4 shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {formErrors.customerPhone}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-neutral-400">
+              Định dạng: 0901234567 hoặc +84901234567
+            </p>
+          </div>
+
+          {/* Submit Button */}
           <button
             disabled={checkingIn}
-            className="w-full rounded-btn bg-primary-600 px-4 py-2 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="w-full rounded-btn bg-primary-600 px-4 py-2.5 font-medium text-white transition-all hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {checkingIn ? "Đang check-in..." : "Tiếp tục vào bàn"}
+            {checkingIn ? (
+              <span className="flex items-center justify-center gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Đang check-in...
+              </span>
+            ) : (
+              "Tiếp tục vào bàn"
+            )}
           </button>
         </form>
       </div>

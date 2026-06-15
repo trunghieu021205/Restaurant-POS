@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import useAuthStore from "@/stores/auth";
 import useCartStore from "@/stores/cart";
 import useBillStore from "@/stores/bill";
@@ -10,19 +10,50 @@ import { ShoppingCart, Menu, X, ChevronDown, FileText } from "lucide-react";
 import { normalizeRole } from "@/lib/roles";
 import { authService } from "@/services/auth";
 import { stopProactiveRefresh } from "@/services/apiClient";
+import { toast } from "@/lib/toast";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [hasActiveSession, setHasActiveSession] = useState(false);
   const { token, user, logout } = useAuthStore();
   const cartItems = useCartStore((state) => state.items);
   const { tableId, openBill } = useBillStore();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const checkSession = () => {
+      setHasActiveSession(
+        sessionStorage.getItem("activeTableSession") === "true",
+      );
+    };
+
+    // Check on mount
+    checkSession();
+
+    // Listen for storage changes (for cross-tab sync)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "activeTableSession") {
+        checkSession();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also check periodically for same-tab changes
+    const interval = setInterval(checkSession, 500);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -47,11 +78,41 @@ export default function Header() {
     }
   };
 
+  const handleLogoClick = () => {
+    const isTablePage = pathname?.startsWith("/table/");
+    const isNotLoggedIn = !token;
+    const hasActiveBill = tableId !== null;
+
+    if (hasActiveBill) {
+      toast.warning(
+        "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
+      );
+    } else if (isTablePage) {
+      toast.warning(
+        "Bạn đã checkin vào bàn. Không thể quay về trang chủ. Nếu có nhu cầu đổi bàn hãy liên hệ nhân viên để được hỗ trợ",
+      );
+    } else if (isNotLoggedIn) {
+      toast.warning("Vui lòng đăng nhập để tiếp tục.");
+    }
+  };
+
+  const handleNavigationClick = (e: React.MouseEvent, href: string) => {
+    if (hasActiveSession && href !== "/") {
+      e.preventDefault();
+      alert(
+        "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
+      );
+    }
+  };
+
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const role = normalizeRole(user?.role);
   const isStaffOrAdmin = role === "staff" || role === "admin";
   const menuHref = role === "staff" ? "/staff/menu" : "/admin/menu";
+  const isTablePage = pathname?.startsWith("/table/");
+  const isNotLoggedIn = !token;
+  const shouldDisableLogo = hasActiveSession || isTablePage || isNotLoggedIn;
 
   // Đã gỡ bỏ phần check trùng lặp, chỉ giữ lại đường dẫn /admin chính xác
   const navLinks = [
@@ -82,13 +143,23 @@ export default function Header() {
         }`}
       >
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center space-x-2 text-2xl md:text-lg lg:text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors"
-          >
-            <span className="text-3xl md:text-2xl lg:text-3xl">🍕</span>
-            <span className="hidden sm:inline">Restaurant</span>
-          </Link>
+          {shouldDisableLogo ? (
+            <button
+              onClick={handleLogoClick}
+              className="flex items-center space-x-2 text-2xl md:text-lg lg:text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors bg-transparent border-none cursor-pointer"
+            >
+              <span className="text-3xl md:text-2xl lg:text-3xl">🍕</span>
+              <span className="hidden sm:inline">Restaurant</span>
+            </button>
+          ) : (
+            <Link
+              href="/"
+              className="flex items-center space-x-2 text-2xl md:text-lg lg:text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors"
+            >
+              <span className="text-3xl md:text-2xl lg:text-3xl">🍕</span>
+              <span className="hidden sm:inline">Restaurant</span>
+            </Link>
+          )}
 
           {/* Desktop nav — chỉ hiện với staff/admin */}
           <nav className="hidden md:flex items-center gap-4 lg:gap-8">
@@ -96,6 +167,7 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={(e) => handleNavigationClick(e, link.href)}
                 className="relative whitespace-nowrap text-sm lg:text-base text-neutral-600 hover:text-primary-600 transition-colors font-medium py-2 group"
               >
                 {link.label}
@@ -144,12 +216,14 @@ export default function Header() {
               <div className="hidden md:flex space-x-3">
                 <Link
                   href="/login"
+                  onClick={(e) => handleNavigationClick(e, "/login")}
                   className="px-4 py-2 text-sm font-medium text-neutral-700 border border-neutral-300 rounded-btn hover:border-primary-500 hover:text-primary-600 transition-colors"
                 >
                   Đăng nhập
                 </Link>
                 <Link
                   href="/register"
+                  onClick={(e) => handleNavigationClick(e, "/register")}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary-500 rounded-btn hover:bg-primary-600 transition-colors shadow-sm"
                 >
                   Đăng ký
@@ -206,8 +280,11 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={(e) => {
+                  handleNavigationClick(e, link.href);
+                  closeMobileMenu();
+                }}
                 className="text-neutral-700 hover:text-primary-600 py-3 px-3 rounded-btn font-medium hover:bg-neutral-50 transition-colors"
-                onClick={closeMobileMenu}
               >
                 {link.label}
               </Link>
@@ -239,15 +316,21 @@ export default function Header() {
             <div className="mt-auto space-y-3">
               <Link
                 href="/login"
+                onClick={(e) => {
+                  handleNavigationClick(e, "/login");
+                  closeMobileMenu();
+                }}
                 className="block w-full text-center border border-neutral-300 py-3 rounded-btn font-medium text-neutral-700 hover:border-primary-500 hover:text-primary-600 transition-colors"
-                onClick={closeMobileMenu}
               >
                 Đăng nhập
               </Link>
               <Link
                 href="/register"
+                onClick={(e) => {
+                  handleNavigationClick(e, "/register");
+                  closeMobileMenu();
+                }}
                 className="block w-full text-center bg-primary-500 text-white py-3 rounded-btn font-medium hover:bg-primary-600 transition-colors"
-                onClick={closeMobileMenu}
               >
                 Đăng ký
               </Link>
