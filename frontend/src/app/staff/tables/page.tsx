@@ -165,6 +165,10 @@ export default function StaffTablesPage() {
 
   useEffect(() => {
     if (!canAccess) return;
+
+    // Lưu trữ các notification đã xử lý để tránh toast trùng
+    const processedNotificationIds = new Set<string>();
+
     const socket = io(API_ORIGIN);
     socket.emit("join-staff");
 
@@ -175,34 +179,45 @@ export default function StaffTablesPage() {
           : current,
       );
     });
+
     socket.on("payment_notification", () =>
       queryClient.invalidateQueries({
         queryKey: ["staff-payment-notifications"],
       }),
     );
+
     socket.on("payment_notification_updated", () =>
       queryClient.invalidateQueries({
         queryKey: ["staff-payment-notifications"],
       }),
     );
+
     socket.on(
       "payment_notification_detail",
       (notification: PaymentNotification) => {
+        const notificationId = notification.id || notification._id;
+
         if (notification.type === "cash_payment_request") {
-          const tableNo =
-            notification.tableNumber ||
-            (typeof notification.tableId === "object"
-              ? notification.tableId.number
-              : "-");
-          toast.success(`Bàn ${tableNo} đã gửi yêu cầu thanh toán`);
+          // Chỉ toast nếu có ID và chưa từng thấy notification này
+          if (notificationId && !processedNotificationIds.has(notificationId)) {
+            processedNotificationIds.add(notificationId);
+            const tableNo =
+              notification.tableNumber ||
+              (typeof notification.tableId === "object"
+                ? notification.tableId.number
+                : "-");
+            toast.success(`Bàn ${tableNo} đã gửi yêu cầu thanh toán`);
+          }
           return;
         }
+
         setSelectedNotification(notification);
       },
     );
 
     return () => {
       socket.disconnect();
+      processedNotificationIds.clear();
     };
   }, [canAccess, queryClient]);
 
