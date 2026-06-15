@@ -1,4 +1,4 @@
-// 🌟 1. NẠP BIẾN MÔI TRƯỜNG Ở DÒNG ĐẦU TIÊN: Đảm bảo mọi module nạp phía sau đều đọc được cấu hình .env
+// 🌟 1. NẠP BIẾN MÔI TRƯỜNG Ở DÒNG ĐẦU TIÊN
 require('dotenv').config();
 
 const dns = require('dns');
@@ -13,70 +13,65 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS - Cho phép nhiều origin
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'http://localhost:3000',
+  'https://restaurant-pos-xi-nine.vercel.app/'
+].filter(Boolean);
+
 const io = socketio(server, {
-  cors: { origin: process.env.FRONTEND_URL, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] }
+  cors: { 
+    origin: allowedOrigins, 
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] 
+  }
 });
 
-app.use(cors());
+// CORS cho Express
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
+
 app.use(express.json());
 
-// Mở cổng chia sẻ thư mục tĩnh public dự phòng nếu hệ thống cần lưu/truy cập ảnh cục bộ công khai
+// Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Connect Database
 connectDB();
 
-// --- KHU VỰC CÁC TUYẾN ĐƯỜNG API TRUYỀN THỐNG CỦA NHÓM ---
-const authRoutes = require('./routes/authRoutes');
-app.use('/api/auth', authRoutes);
+// --- API ROUTES ---
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/menu', require('./routes/menuRoutes'));
+app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/cart', require('./routes/cartRoutes'));
+app.use('/api/upload', require('./routes/uploadRoutes'));
+app.use('/api/qr', require('./routes/qrRoutes'));
+app.use('/api/tables', require('./routes/tableRoutes'));
+app.use('/api/categories', require('./routes/categoriesRoutes'));
+app.use('/api/bills', require('./routes/billRoutes'));
 
-const menuRoutes = require('./routes/menuRoutes');
-app.use('/api/menu', menuRoutes);
+// Admin routes
+app.use('/api/admin/categories', require('./routes/categoriesAdminRoutes'));
+app.use('/api/admin/menu', require('./routes/menuAdminRoutes'));
+app.use('/api/admin/stats', require('./routes/statsAdminRoutes'));
 
-const orderRoutes = require('./routes/orderRoutes');
-app.use('/api/orders', orderRoutes);
+// Health check
+app.get('/', (req, res) => res.json({ 
+  status: 'ok', 
+  message: 'API running',
+  timestamp: new Date().toISOString()
+}));
 
-const paymentRoutes = require('./routes/paymentRoutes');
-app.use('/api/payments', paymentRoutes);
-
-const adminRoutes = require('./routes/adminRoutes');
-app.use('/api/admin', adminRoutes);
-
-const cartRoutes = require('./routes/cartRoutes');
-app.use('/api/cart', cartRoutes);
-
-const uploadRoutes = require('./routes/uploadRoutes');
-app.use('/api/upload', uploadRoutes);
-
-const qrRoutes = require('./routes/qrRoutes');
-app.use('/api/qr', qrRoutes);
-
-const tableRoutes = require('./routes/tableRoutes');
-app.use('/api/tables', tableRoutes);
-
-const categoriesRoutes = require('./routes/categoriesRoutes');
-app.use('/api/categories', categoriesRoutes);
-
-const billRoutes = require('./routes/billRoutes');
-app.use('/api/bills', billRoutes);
-
-app.get('/', (req, res) => res.send('API running'));
-
-
+// Socket.io
 const { initSocket } = require('./socket');
 initSocket(io);
-// --- KHU VỰC CÁC TUYẾN ĐƯỜNG ADMIN ĐỘC LẬP (ĐÃ THÊM MỚI BẢO VỆ CONFLICT) ---
-const categoriesAdminRoutes = require('./routes/categoriesAdminRoutes');
-app.use('/api/admin/categories', categoriesAdminRoutes);
 
-const menuAdminRoutes = require('./routes/menuAdminRoutes');
-app.use('/api/admin/menu', menuAdminRoutes);
-
-const statsAdminRoutes = require('./routes/statsAdminRoutes');
-app.use('/api/admin/stats', statsAdminRoutes);
-
-app.get('/', (req, res) => res.send('API running'));
-
-// Start cron jobs
+// Cron jobs
 try {
   const { startCronJobs } = require('./utils/cron');
   startCronJobs();
@@ -84,31 +79,37 @@ try {
   console.error('Failed to start cron jobs:', e);
 }
 
-// Thêm kiểm tra socket ready
-if (!io) {
-  console.error('CRITICAL: Socket failed to initialize');
-  process.exit(1);
-}
-
-// 🌟 BỘ LỌC LỖI TOÀN CỤC CHUẨN JSON (GLOBAL ERROR HANDLER):
-// Chặn đứng hoàn toàn việc văng trang HTML lỗi thô, đảm bảo Frontend luôn nhận về JSON dễ đọc.
+// Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('🚨 [SERVER ERROR LOG]:', err.stack || err);
+  console.error('🚨 [SERVER ERROR]:', err.message);
   res.status(err.status || 500).json({
-    message: err.message || 'Đã xảy ra lỗi hệ thống nội bộ bên phía Server.',
-    error: process.env.NODE_ENV === 'development' ? err.stack : {}
+    message: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'production' ? undefined : err.stack
   });
 });
 
+// Start server với graceful shutdown
 const PORT = process.env.PORT || 5000;
 
-server.on('error', (err) => {
-  if (err && err.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use.`);
+const startServer = async () => {
+  try {
+    server.listen(PORT, () => {
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
-  console.error('Server error:', err);
-  process.exit(1);
-});
+};
 
-server.listen(PORT, () => console.log(`Server running on ${PORT}`));
+startServer();
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
