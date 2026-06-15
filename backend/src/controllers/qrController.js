@@ -202,11 +202,17 @@ exports.checkInTable = async (req, res) => {
     }
 
     if (table.status === 'reserved') {
-      if (!customerPhone || table.customerPhone !== customerPhone) {
-        return res.status(409).json({ message: 'Bàn này đã được đặt trước. Vui lòng nhập số điện thoại đặt bàn.' });
+      const phoneMatches =
+        !!customerPhone &&
+        normalizePhoneForCompare(table.customerPhone) === normalizePhoneForCompare(customerPhone);
+      const nameMatches =
+        !!customerName && sameCustomer(table.customerName, customerName);
+
+      if (!phoneMatches || !nameMatches) {
+        return res.status(409).json({
+          message: 'Bàn này đã được đặt trước. Vui lòng nhập đúng họ tên và số điện thoại đã dùng để đặt bàn.',
+        });
       }
-    } else if (!customerName || !isValidPhone(customerPhone)) {
-      return res.status(400).json({ message: 'Tên khách hàng và số điện thoại hợp lệ là bắt buộc' });
     }
 
     const nextCustomerName = table.status === 'reserved' ? table.customerName : customerName;
