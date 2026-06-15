@@ -65,7 +65,7 @@ interface Props {
   onAssist: (id: string) => void;
   onComplete: (id: string) => void;
   onPrint: (item: PaymentNotification) => void;
-  isProcessing: boolean; // để disable nút khi đang gọi API
+  isProcessing: boolean;
 }
 
 export default function PaymentNotificationItem({
@@ -140,13 +140,6 @@ export default function PaymentNotificationItem({
           className="flex-1 rounded-btn border border-neutral-200 px-2 py-1.5 text-xs"
         >
           <ReceiptText className="mr-1 inline" size={13} /> Hoá đơn
-        </button>
-
-        <button
-          onClick={() => onPrint(item)}
-          className="flex-1 rounded-btn border border-neutral-200 px-2 py-1.5 text-xs"
-        >
-          <Printer className="mr-1 inline" size={13} /> In
         </button>
 
         {/* Nút chính: Đã hỗ trợ / Hoàn tất */}
