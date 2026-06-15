@@ -1,4 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { encrypt, decrypt } from '@/utils/crypto';
 
 export interface LoginRequest {
   email: string;
@@ -13,6 +14,7 @@ export interface RegisterRequest {
 
 export interface AuthResponse {
   token: string;
+  refreshToken?: string;
   user: {
     id: string;
     name: string;
@@ -23,12 +25,15 @@ export interface AuthResponse {
 
 export const authService = {
   async login(data: LoginRequest): Promise<AuthResponse> {
+    // Encrypt the login payload
+    const encryptedPayload = await encrypt(JSON.stringify(data));
+    
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ encryptedData: encryptedPayload }),
     });
 
     if (!response.ok) {
@@ -36,7 +41,15 @@ export const authService = {
       throw new Error(error.message || 'Đăng nhập thất bại');
     }
 
-    return response.json();
+    const result = await response.json();
+    
+    // Decrypt the email in the response
+    if (result.user && result.user.encryptedEmail) {
+      result.user.email = await decrypt(result.user.encryptedEmail);
+      delete result.user.encryptedEmail;
+    }
+    
+    return result;
   },
 
   async register(data: RegisterRequest): Promise<AuthResponse> {
@@ -54,5 +67,20 @@ export const authService = {
     }
 
     return response.json();
+  },
+
+  async logout(token: string): Promise<void> {
+    const response = await fetch(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Đăng xuất thất bại');
+    }
   },
 };

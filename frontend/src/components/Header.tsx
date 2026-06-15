@@ -8,6 +8,8 @@ import useCartStore from "@/stores/cart";
 import useBillStore from "@/stores/bill";
 import { ShoppingCart, Menu, X, ChevronDown, FileText } from "lucide-react";
 import { normalizeRole } from "@/lib/roles";
+import { authService } from "@/services/auth";
+import { stopProactiveRefresh } from "@/services/apiClient";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -30,10 +32,19 @@ export default function Header() {
     };
   }, [mobileMenuOpen]);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-    setMobileMenuOpen(false);
+  const handleLogout = async () => {
+    try {
+      if (token) {
+        await authService.logout(token);
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      stopProactiveRefresh();
+      logout();
+      router.push("/login");
+      setMobileMenuOpen(false);
+    }
   };
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -41,20 +52,24 @@ export default function Header() {
   const role = normalizeRole(user?.role);
   const isStaffOrAdmin = role === "staff" || role === "admin";
   const menuHref = role === "staff" ? "/staff/menu" : "/admin/menu";
-  
+
   // Đã gỡ bỏ phần check trùng lặp, chỉ giữ lại đường dẫn /admin chính xác
   const navLinks = [
-    ...(role === "staff" ? [
-      { href: "/staff/tables", label: "Quản lý bàn" },
-      { href: "/staff/menu", label: "Thực đơn" },
-      { href: "/kitchen", label: "Bếp" }
-    ] : []),
-    ...(role === "admin" ? [
-      { href: "/admin", label: "Thống kê" },
-      { href: "/admin/tables", label: "Quản lý bàn" }, // Bàn của Admin (CRUD)
-      { href: "/admin/menu", label: "Thực đơn" },
-      { href: "/admin/users", label: "Nhân sự" },     // Quản lý Staff
-    ] : []),
+    ...(role === "staff"
+      ? [
+          { href: "/staff/tables", label: "Sơ đồ bàn" },
+          { href: "/staff/menu", label: "Thực đơn" },
+          { href: "/kitchen", label: "Bếp" },
+        ]
+      : []),
+    ...(role === "admin"
+      ? [
+          { href: "/admin", label: "Thống kê" },
+          { href: "/admin/tables", label: "Quản lý bàn" }, // Bàn của Admin (CRUD)
+          { href: "/admin/menu", label: "Thực đơn" },
+          { href: "/admin/users", label: "Nhân sự" }, // Quản lý Staff
+        ]
+      : []),
   ];
 
   return (
@@ -69,19 +84,19 @@ export default function Header() {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center space-x-2 text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors"
+            className="flex items-center space-x-2 text-2xl md:text-lg lg:text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors"
           >
-            <span className="text-3xl">🍕</span>
+            <span className="text-3xl md:text-2xl lg:text-3xl">🍕</span>
             <span className="hidden sm:inline">Restaurant</span>
           </Link>
 
           {/* Desktop nav — chỉ hiện với staff/admin */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center gap-4 lg:gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="relative text-neutral-600 hover:text-primary-600 transition-colors font-medium py-2 group"
+                className="relative whitespace-nowrap text-sm lg:text-base text-neutral-600 hover:text-primary-600 transition-colors font-medium py-2 group"
               >
                 {link.label}
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full" />
@@ -116,12 +131,6 @@ export default function Header() {
                 </button>
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-card shadow-modal opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-1 group-hover:translate-y-0 z-50">
                   <div className="py-1">
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-primary-600"
-                    >
-                      Tài khoản
-                    </Link>
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-error-500 hover:bg-neutral-100"

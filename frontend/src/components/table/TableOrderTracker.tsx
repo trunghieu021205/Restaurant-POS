@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import OrderStatusBadge from "@/components/kitchen/OrderStatusBadge";
 import { useTableOrders } from "@/hooks/useTableOrders";
+import useCartStore from "@/stores/cart";
 
 interface TableOrderTrackerProps {
   tableId: string;
@@ -21,6 +22,7 @@ const visibleStatuses = new Set(["pending", "confirmed"]);
 export function TableOrderTracker({ tableId }: TableOrderTrackerProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(false);
+  const isCartExpanded = useCartStore((state) => state.isExpanded);
   const {
     data: orders = [],
     isLoading,
@@ -154,18 +156,25 @@ export function TableOrderTracker({ tableId }: TableOrderTrackerProps) {
 
   return (
     <>
-      <button
-        className="fixed bottom-6 left-5 z-(--z-modal) rounded-full bg-success-500 p-4 text-white shadow-lg transition-all duration-200 hover:scale-110 hover:bg-success-600 lg:hidden"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Mở theo dõi món"
-      >
-        <Utensils className="h-6 w-6" />
-        {pendingItemCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-error-500 text-xs font-bold text-white">
-            {pendingItemCount > 9 ? "9+" : pendingItemCount}
-          </span>
-        )}
-      </button>
+      {!mobileOpen && (
+        <button
+          className={`
+      fixed z-(--z-modal) rounded-full bg-success-300 p-4 text-white
+      shadow-lg transition-all duration-300 ease-in-out hover:scale-110
+      hover:bg-success-500 lg:hidden
+      ${isCartExpanded ? "top-6 left-5" : "bottom-6 left-5"}
+    `}
+          onClick={() => setMobileOpen(true)}
+          aria-label="Mở theo dõi món"
+        >
+          <Utensils className="h-6 w-6" />
+          {pendingItemCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-error-500 text-xs font-bold text-white">
+              {pendingItemCount > 9 ? "9+" : pendingItemCount}
+            </span>
+          )}
+        </button>
+      )}
 
       {mobileOpen && (
         <div

@@ -2,7 +2,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import { Search, Plus, Filter } from "lucide-react";
+import { Search, Plus, Filter, FolderOpen } from "lucide-react";
 import { MenuFilters, Category } from "@/types/menu";
 
 interface MenuToolbarProps {
@@ -11,6 +11,7 @@ interface MenuToolbarProps {
   onCategoryChange: (category: string) => void;
   onStatusChange: (status: MenuFilters["status"]) => void;
   onAddNew: () => void;
+  onManageCategories?: () => void;
   total?: number;
   categories?: Category[];
 }
@@ -21,6 +22,7 @@ export function MenuToolbar({
   onCategoryChange,
   onStatusChange,
   onAddNew,
+  onManageCategories,
   total,
   categories = [],
 }: MenuToolbarProps) {
@@ -38,13 +40,25 @@ export function MenuToolbar({
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-neutral-800"
           />
         </div>
-        <Button
-          onClick={onAddNew}
-          className="bg-primary-500 hover:bg-primary-600 text-white gap-2 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Thêm món mới</span>
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          {onManageCategories && (
+            <Button
+              onClick={onManageCategories}
+              variant="outline"
+              className="border-neutral-200 hover:bg-neutral-50 text-neutral-700 gap-2"
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">Quản lý danh mục</span>
+            </Button>
+          )}
+          <Button
+            onClick={onAddNew}
+            className="bg-primary-500 hover:bg-primary-600 text-white gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Thêm món mới</span>
+          </Button>
+        </div>
       </div>
 
       {/* Bottom row: filters */}

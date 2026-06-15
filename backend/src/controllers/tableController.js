@@ -22,18 +22,18 @@ function isValidPhone(phone) {
 }
 
 function emitStaff(event, payload) {
+    try {
+        getIO().to('staff').emit(event, payload);
+    } catch (emitError) {
+        console.error(`Emit ${event} failed:`, emitError);
+    }
+}
 
 function emitTable(tableId, event, payload) {
     try {
         getIO().to(`table_${tableId}`).emit(event, payload);
     } catch (emitError) {
         console.error(`Emit ${event} to table ${tableId} failed:`, emitError);
-    }
-}
-    try {
-        getIO().to('staff').emit(event, payload);
-    } catch (emitError) {
-        console.error(`Emit ${event} failed:`, emitError);
     }
 }
 
@@ -83,6 +83,9 @@ exports.reserveTable = async (req, res) => {
         if (table.status === 'occupied') {
             return res.status(409).json({ message: 'Cannot reserve an occupied table' });
         }
+        if (table.status === 'maintenance') {
+            return res.status(409).json({ message: 'Không thể đặt bàn đang bảo trì' });
+        }
 
         const fromStatus = table.status;
         table.status = 'reserved';
@@ -117,9 +120,34 @@ exports.unlockTable = async (req, res) => {
         const table = await resolveTableByIdentifier(tableId);
         if (!table) return res.status(404).json({ message: 'Bàn không tồn tại' });
 
+        if (table.status === 'maintenance') {
+            return res.status(409).json({ message: 'Không thể mở khóa bàn đang bảo trì' });
+        }
+
+        // Validate lý do mở khóa nếu có
+        const validUnlockReasons = ['system_error', 'customer_change_table'];
+        if (note && !validUnlockReasons.includes(note)) {
+            return res.status(400).json({ message: 'Lý do mở khóa không hợp lệ' });
+        }
+
         const openBill = await getOpenBillForTable(table._id);
         if (openBill && !confirmed) {
             return res.status(409).json({ message: 'Hóa đơn mở tồn tại. Yêu cầu xác nhận từ nhân viên.' });
+        }
+
+        // Nếu có bill mở, kiểm tra xem có đơn hàng active không
+        if (openBill) {
+            const activeOrderCount = await Order.countDocuments({
+                tableId: table._id,
+                billId: openBill._id,
+                status: { $ne: 'cancelled' }
+            });
+
+            if (activeOrderCount > 0) {
+                return res.status(409).json({ 
+                    message: 'Không thể mở khóa bàn khi khách đang có đơn hàng chưa thanh toán.' 
+                });
+            }
         }
 
         const fromStatus = table.status;

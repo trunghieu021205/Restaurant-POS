@@ -4,7 +4,7 @@ export interface ResolvedTable {
   id: string;
   number: number;
   capacity: number;
-  status: 'available' | 'occupied' | 'reserved' | 'maintenance';
+  status: 'available' | 'occupied' | 'reserved' | 'maintenance' | 'cleaning';
   customerName?: string;
   customerPhone?: string;
   checkedInAt?: string;

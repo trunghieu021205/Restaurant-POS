@@ -2,6 +2,8 @@
 
 import { useEffect, use, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 import MenuGrid from "@/components/menu/MenuGrid";
 import MenuSkeleton from "@/components/menu/MenuSkeleton";
 import Cart from "@/components/cart/Cart";
@@ -12,12 +14,21 @@ import ErrorFallback from "@/components/ErrorFallback";
 import { BillSheet } from "@/components/bill/BillSheet";
 import { useTodayMenu } from "@/hooks/useTodayMenu";
 import type { ResolvedTable } from "@/services/table";
-import { checkInTableByQr, validateTableSession } from "@/services/qr";
+import {
+  checkInTableByQr,
+  rejoinTableSession,
+  validateTableSession,
+} from "@/services/qr";
 import { io } from "socket.io-client";
 import { useCategories } from "@/hooks/useCategories";
-import type { Category } from "@/types/menu";
 import MenuCategoryFilter from "./MenuCategoryFilter";
 import { TableOrderTracker } from "@/components/table/TableOrderTracker";
+import {
+  clearAllTableSessions,
+  clearTableSession,
+  getTableSession,
+  saveTableSession,
+} from "@/lib/tableSession";
 
 const API_ORIGIN = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
@@ -28,6 +39,7 @@ type Params = Promise<{ id: string }>;
 export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const qrToken = searchParams.get("qrToken");
   const { isOpen: billOpen, closeBill, setTableId } = useBillStore();
   const { fetchCart, collapseCart } = useCartStore();
@@ -45,7 +57,7 @@ export default function TablePage({ params }: { params: Params }) {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [checkingIn, setCheckingIn] = useState(false);
-  const tableSessionKey = `table-session:${id}`;
+  const [menuRefreshing, setMenuRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,18 +66,32 @@ export default function TablePage({ params }: { params: Params }) {
       let resolvedTable: ResolvedTable | null = null;
       let denialMessage = "Vui lòng quét QR hợp lệ để truy cập bàn.";
       try {
-        const existingSession =
-          typeof window !== "undefined"
-            ? sessionStorage.getItem(tableSessionKey)
-            : null;
+        const existingSession = getTableSession(id)?.token;
 
-        if (!qrToken && existingSession) {
+        // Ưu tiên dùng sessionToken đã lưu, chỉ dùng qrToken nếu không có session
+        if (existingSession) {
           const validated = await validateTableSession(id, existingSession);
           resolvedTable = validated.table;
+        } else if (qrToken) {
+          // Nếu không có session nhưng có qrToken, cần check-in mới
+          setTableOk(false);
+          setAccessDenied(null);
+          setTable(null);
+          setTableId(null);
+          return;
         }
       } catch (e) {
-        console.error("table access validation failed:", e);
-        denialMessage = e instanceof Error ? e.message : denialMessage;
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        // Nếu session không còn hoạt động, xóa session cũ và cho phép check-in lại
+        if (
+          errorMessage.includes("Phiên làm việc của bàn không còn hoạt động")
+        ) {
+          clearTableSession(id);
+          denialMessage = null; // Không hiển thị lỗi, cho phép check-in lại với qrToken
+        } else {
+          console.error("table access validation failed:", e);
+          denialMessage = errorMessage;
+        }
         resolvedTable = null;
       }
 
@@ -76,6 +102,15 @@ export default function TablePage({ params }: { params: Params }) {
         setAccessDenied(qrToken ? null : denialMessage);
         setTable(null);
         setTableId(null);
+        return;
+      }
+
+      if (resolvedTable.status === "maintenance") {
+        setTableOk(false);
+        setAccessDenied(`Bàn số ${resolvedTable.number} đang bảo trì. Vui lòng liên hệ nhân viên.`);
+        setTable(null);
+        setTableId(null);
+        clearTableSession(id);
         return;
       }
 
@@ -93,24 +128,44 @@ export default function TablePage({ params }: { params: Params }) {
       cancelled = true;
       setTableId(null);
     };
-  }, [id, qrToken, tableSessionKey, setTableId, fetchCart, collapseCart]);
+  }, [id, qrToken, setTableId, fetchCart, collapseCart]);
 
   // Lắng nghe sự kiện payment_completed để tự redirect về home
   useEffect(() => {
-    if (!tableOk) return;
+    if (!tableOk || !table) return;
 
     const socket = io(API_ORIGIN);
-    socket.emit("join-table", id);
+    socket.emit("join-table", table.id);
 
     socket.on("payment_completed", () => {
-      sessionStorage.removeItem(`table-session:${id}`);
+      clearTableSession(id, table?.number);
+      clearAllTableSessions();
+      useCartStore.getState().resetLocalCart();
+      closeBill();
       window.location.href = "/";
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [id, tableOk]);
+  }, [id, table?.id, table?.number, tableOk, closeBill]);
+
+  const restoreSession = (
+    session: Awaited<ReturnType<typeof checkInTableByQr>>,
+  ) => {
+    saveTableSession({
+      table: session.table,
+      token: session.sessionToken,
+      customerName,
+      customerPhone,
+    });
+    setTableOk(true);
+    setAccessDenied(null);
+    setTable(session.table);
+    setTableId(session.table.id);
+    fetchCart(session.table.id);
+    collapseCart();
+  };
 
   const handleCheckIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -123,16 +178,7 @@ export default function TablePage({ params }: { params: Params }) {
         customerName,
         customerPhone,
       });
-      sessionStorage.setItem(tableSessionKey, checkIn.sessionToken);
-      sessionStorage.setItem(
-        `table-session:${checkIn.table.id}`,
-        checkIn.sessionToken,
-      );
-      setTableOk(true);
-      setTable(checkIn.table);
-      setTableId(checkIn.table.id);
-      fetchCart(checkIn.table.id);
-      collapseCart();
+      restoreSession(checkIn);
     } catch (e) {
       setAccessDenied(e instanceof Error ? e.message : "Check-in that bai");
     } finally {
@@ -140,13 +186,56 @@ export default function TablePage({ params }: { params: Params }) {
     }
   };
 
+  const handleRejoin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setCheckingIn(true);
+    setAccessDenied(null);
+    try {
+      const session = await rejoinTableSession(id, {
+        customerName,
+        customerPhone,
+      });
+      restoreSession(session);
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : "Không thể vào lại bàn";
+      // Check if this is an EMPTY_SESSION_RESET error
+      if (
+        errorMessage.includes("đã được mở lại") ||
+        errorMessage.includes("EMPTY_SESSION_RESET")
+      ) {
+        setAccessDenied(
+          "Bàn đã được mở lại cho khách mới. Vui lòng quét mã QR trên bàn để bắt đầu phiên mới.",
+        );
+        // Clear the stored session for this table
+        clearTableSession(id);
+      } else {
+        setAccessDenied(errorMessage);
+      }
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleRefreshMenu = async () => {
+    setMenuRefreshing(true);
+    try {
+      await queryClient.cancelQueries({ queryKey: ["menu", "today"] });
+      queryClient.removeQueries({ queryKey: ["menu", "today"] });
+      await refetch();
+    } finally {
+      setMenuRefreshing(false);
+    }
+  };
+
   if (isLoading || tableOk === null) return <MenuSkeleton />;
 
-  if (tableOk === false && qrToken) {
+  if (tableOk === false) {
     return (
       <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4">
         <form
-          onSubmit={handleCheckIn}
+          onSubmit={qrToken ? handleCheckIn : handleRejoin}
           className="space-y-4 rounded-card border border-neutral-200 bg-white p-6 shadow-card"
         >
           <div>
@@ -190,16 +279,6 @@ export default function TablePage({ params }: { params: Params }) {
     );
   }
 
-  if (tableOk === false) {
-    return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="font-medium text-red-500">
-          {accessDenied ?? "Không có bàn này"}
-        </p>
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
@@ -227,9 +306,21 @@ export default function TablePage({ params }: { params: Params }) {
             isExpanded ? "lg:pr-75" : "lg:pr-16"
           } lg:pl-16`}
         >
-          <h1 className="mb-4 text-xl font-bold text-neutral-800 sm:mb-6 sm:text-2xl md:text-3xl">
-            Bàn số {table?.number ?? id}
-          </h1>
+          <div className="mb-4 sm:mb-6 flex justify-between items-center">
+            <h1 className="text-xl font-bold text-neutral-800 sm:text-2xl md:text-3xl">
+              Bàn số {table?.number ?? id}
+            </h1>
+            <button
+              onClick={handleRefreshMenu}
+              disabled={menuRefreshing || isLoading}
+              className="inline-flex items-center gap-2 rounded-btn border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition-colors hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${menuRefreshing ? "animate-spin" : ""}`}
+              />
+              {menuRefreshing ? "Đang tải..." : "Tải lại menu"}
+            </button>
+          </div>
 
           {menuItems.length === 0 ? (
             <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 text-neutral-400">

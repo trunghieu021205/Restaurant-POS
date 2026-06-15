@@ -7,6 +7,7 @@ import { MenuCard } from "@/components/admin/menu/MenuCard";
 import { MenuForm } from "@/components/admin/menu/MenuForm";
 import { DeleteConfirmDialog } from "@/components/admin/menu/DeleteConfirmDialog";
 import { MenuToolbar } from "@/components/admin/menu/MenuToolbar";
+import { CategoryManagement } from "@/components/admin/menu/CategoryManagement";
 import { Pagination } from "@/components/admin/menu/Pagination";
 import Skeleton from "@/components/ui/Skeleton";
 import { MenuItem, MenuFormData, MenuFilters } from "@/types/menu";
@@ -45,6 +46,7 @@ export default function AdminMenuPage() {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<MenuItem | null>(null);
+  const [categoryManagementOpen, setCategoryManagementOpen] = useState(false);
 
   const fetchMenu = useCallback(async () => {
     setIsLoading(true);
@@ -139,6 +141,11 @@ export default function AdminMenuPage() {
     }
   };
 
+  const handleCategoriesChange = () => {
+    // Refetch categories to update the list
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -159,6 +166,7 @@ export default function AdminMenuPage() {
           onCategoryChange={(category) => setFilters(prev => ({ ...prev, category, page: 1 }))}
           onStatusChange={(status: any) => setFilters(prev => ({ ...prev, status, page: 1 }))}
           onAddNew={handleAddNew}
+          onManageCategories={() => setCategoryManagementOpen(true)}
           total={menuData?.total}
           categories={categories || []}
         />
@@ -241,6 +249,13 @@ export default function AdminMenuPage() {
           onConfirm={handleDeleteConfirm}
           itemName={deletingItem?.name || ""}
           isLoading={isDeleting}
+        />
+
+        <CategoryManagement
+          open={categoryManagementOpen}
+          onOpenChange={setCategoryManagementOpen}
+          categories={categories || []}
+          onCategoriesChange={handleCategoriesChange}
         />
       </div>
     </div>

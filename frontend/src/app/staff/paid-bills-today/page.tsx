@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Printer, ReceiptText, Loader2 } from "lucide-react";
 
 import { fetchPaidBillsTodayForStaff } from "@/services/bill";
+import { fetchStaffTables } from "@/services/staffTables";
 import { useAuth } from "@/hooks/useAuth";
 import { hasRole } from "@/lib/roles";
 import { toast } from "@/lib/toast";
@@ -22,6 +23,15 @@ function formatTime(value?: string | null) {
   return d.toLocaleString("vi-VN");
 }
 
+function formatPaymentMethod(method?: string | null) {
+  const methods: Record<string, string> = {
+    cash: "Tiền mặt",
+    online_qr: "Thanh toán trực tuyến",
+    vnpay: "VNPay",
+  };
+  return methods[method || ""] || method || "-";
+}
+
 export default function PaidBillsTodayPage() {
   const router = useRouter();
   const [billSheetOpen, setBillSheetOpen] = useState(false);
@@ -32,6 +42,7 @@ export default function PaidBillsTodayPage() {
   const [selectedBillTableNumber, setSelectedBillTableNumber] = useState<
     number | undefined
   >(undefined);
+  const [selectedTableFilter, setSelectedTableFilter] = useState<string>("all");
 
   const openBillFor = (
     billId: string,
@@ -53,7 +64,30 @@ export default function PaidBillsTodayPage() {
     enabled: !!canAccess,
   });
 
+  const { data: tablesData } = useQuery({
+    queryKey: ["staff-tables"],
+    queryFn: fetchStaffTables,
+    enabled: !!canAccess,
+  });
+
   const items = data ?? [];
+
+  // Get all table numbers for filter (from all tables, not just bills)
+  const tableNumbers = useMemo(() => {
+    const tables = new Set<number>();
+    if (tablesData) {
+      for (const t of tablesData) {
+        tables.add(t.number);
+      }
+    }
+    return Array.from(tables).sort((a, b) => a - b);
+  }, [tablesData]);
+
+  // Filter items by selected table
+  const filteredItems = useMemo(() => {
+    if (selectedTableFilter === "all") return items;
+    return items.filter((b) => b.tableNumber === Number(selectedTableFilter));
+  }, [items, selectedTableFilter]);
 
   const customerSummary = useMemo(() => {
     const byName = new Map<string, number>();
@@ -80,20 +114,33 @@ export default function PaidBillsTodayPage() {
           onClose={() => setBillSheetOpen(false)}
         />
 
-        <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-neutral-900">
               Bill đã thanh toán hôm nay
             </h1>
-            <p className="text-sm text-neutral-500">
-              Dùng để xem lại & in lại hóa đơn nếu staff/quầy quên in trước khi
-              hoàn tất.
-            </p>
           </div>
-          <div className="rounded-card bg-white border border-neutral-200 px-4 py-3 shadow-sm">
-            <div className="flex items-center gap-2 text-sm text-neutral-600">
-              <ReceiptText className="h-4 w-4" />
-              <span>{items.length} bill</span>
+          <div className="flex items-center gap-3">
+            {/* Table filter */}
+            {tableNumbers.length > 0 && (
+              <select
+                value={selectedTableFilter}
+                onChange={(e) => setSelectedTableFilter(e.target.value)}
+                className="rounded-card border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm focus:border-primary-500 focus:outline-none"
+              >
+                <option value="all">Tất cả bàn</option>
+                {tableNumbers.map((tableNum) => (
+                  <option key={tableNum} value={tableNum.toString()}>
+                    Bàn {tableNum}
+                  </option>
+                ))}
+              </select>
+            )}
+            <div className="rounded-card bg-white border border-neutral-200 px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <ReceiptText className="h-4 w-4" />
+                <span>{filteredItems.length} bill</span>
+              </div>
             </div>
           </div>
         </div>
@@ -117,29 +164,26 @@ export default function PaidBillsTodayPage() {
 
         {!isLoading && !isError && (
           <div className="grid gap-4">
-            {items.length === 0 ? (
+            {filteredItems.length === 0 ? (
               <div className="rounded-card bg-white p-10 border border-neutral-200 text-center">
                 <div className="text-5xl">🧾</div>
                 <p className="mt-3 text-neutral-600 font-medium">
-                  Chưa có bill nào thanh toán hôm nay
+                  {selectedTableFilter === "all" 
+                    ? "Chưa có bill nào thanh toán hôm nay"
+                    : `Chưa có bill nào thanh toán cho bàn ${selectedTableFilter}`}
                 </p>
               </div>
             ) : (
-              items.slice(0, 200).map((b) => (
+              filteredItems.slice(0, 200).map((b) => (
                 <div
                   key={b.id}
                   className="rounded-card bg-white border border-neutral-200 p-4 shadow-sm"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-neutral-900">
-                          Bàn {b.tableNumber ?? b.tableId}
-                        </p>
-                        <span className="rounded-btn bg-success-500/10 px-2 py-0.5 text-xs font-semibold text-success-700">
-                          Paid
-                        </span>
-                      </div>
+                      <p className="text-sm font-semibold text-neutral-900">
+                        Bàn {b.tableNumber ?? b.tableId}
+                      </p>
                       <p className="mt-1 text-xs text-neutral-500">
                         Thời gian: {formatTime(b.paidAt)}
                       </p>
@@ -153,61 +197,7 @@ export default function PaidBillsTodayPage() {
                       <button
                         className="flex items-center justify-center gap-2 rounded-btn border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
                         onClick={() => {
-                          // In trực tiếp từ trang này: tạo nội dung print dạng text/HTML.
-                          // Trường hợp bạn muốn format đẹp hơn theo layout BillSheet, có thể đổi sang render component bill.
-                          try {
-                            const w = window.open(
-                              "",
-                              "_blank",
-                              "width=420,height=720",
-                            );
-                            if (!w) {
-                              toast.error("Không thể mở cửa sổ in");
-                              return;
-                            }
-                            const itemsHtml = b.items
-                              .map((it) => {
-                                const line = `${it.quantity} x ${it.name}`;
-                                const note = it.notes
-                                  ? `\n  (${it.notes})`
-                                  : "";
-                                return `• ${line}${note}`;
-                              })
-                              .join("<br/>");
-
-                            w.document.write(`
-                                <html>
-                                  <head>
-                                    <title>In bill</title>
-                                    <style>
-                                      body{font-family:Arial,Helvetica,sans-serif;padding:16px;}
-                                      h2{margin:0 0 8px 0;font-size:18px;}
-                                      .muted{color:#666;font-size:12px;}
-                                      .row{display:flex;justify-content:space-between;font-size:13px;margin-top:4px;}
-                                      .total{font-weight:700;font-size:16px;margin-top:10px;}
-                                      .items{margin-top:10px;font-size:13px;line-height:1.4;}
-                                      pre{white-space:pre-wrap;}
-                                    </style>
-                                  </head>
-                                  <body>
-                                    <h2>HÓA ĐƠN THANH TOÁN</h2>
-                                    <div class='muted'>Bàn: ${b.tableNumber ?? b.tableId} • Mã: ${b.id.slice(-8).toUpperCase()}</div>
-                                    <div class='muted'>Khách: ${b.customerName ?? "-"} • SĐT: ${b.customerPhone ?? "-"}</div>
-                                    <div class='muted'>Thời gian: ${formatTime(b.paidAt)}</div>
-                                    <div class='muted'>Phương thức: ${b.paymentMethod ?? "-"}</div>
-                                    <div class='items'>${itemsHtml}</div>
-                                    <div class='row'><span>Tổng cộng</span><span>${formatCurrency(b.totalAmount)}</span></div>
-                                    <div class='total'>Cảm ơn quý khách!</div>
-                                    <script>
-                                      setTimeout(()=>{window.focus();window.print();}, 100);
-                                    </script>
-                                  </body>
-                                </html>
-                              `);
-                            w.document.close();
-                          } catch (e) {
-                            toast.error("Lỗi in bill");
-                          }
+                          window.open(`/bill/${b.id}/print`, "_blank");
                         }}
                       >
                         <Printer className="h-4 w-4" />
@@ -235,7 +225,7 @@ export default function PaidBillsTodayPage() {
                       <div className="text-neutral-600">
                         Thanh toán:{" "}
                         <span className="font-semibold text-neutral-900">
-                          {b.paymentMethod ?? "-"}
+                          {formatPaymentMethod(b.paymentMethod)}
                         </span>
                       </div>
                     </div>

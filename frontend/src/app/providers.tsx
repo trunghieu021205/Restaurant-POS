@@ -4,8 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  const isMobile = useIsMobile();
   // Khởi tạo QueryClient chỉ một lần bằng useState
   const [queryClient] = useState(
     () =>
@@ -25,7 +27,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         {children}
         <Toaster
-          position="top-right"
+          position={isMobile ? "top-right" : "bottom-right"}
           toastOptions={{
             duration: 3000,
             style: {

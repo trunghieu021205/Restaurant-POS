@@ -9,6 +9,8 @@ function auditActionLabel(action: string) {
     check_in: "Check-in",
     status_change: "Đổi trạng thái",
     payment_assist: "Hỗ trợ thanh toán",
+    cash_payment_completed: "Thanh toán tiền mặt thành công",
+    online_payment_success: "Thanh toán trực tuyến thành công",
   };
   return labels[action] || action;
 }
@@ -23,12 +25,22 @@ function statusLabel(status?: string) {
   return status ? map[status] || status : "-";
 }
 
+function unlockReasonLabel(reason?: string) {
+  const map: Record<string, string> = {
+    system_error: "Lỗi hệ thống",
+    customer_change_table: "Khách muốn đổi bàn",
+  };
+  return reason ? map[reason] || reason : "";
+}
+
 interface AuditLog {
   _id: string;
   action: string;
   tableId?: { number: number };
   fromStatus?: string;
   toStatus?: string;
+  note?: string;
+  staffId?: { name?: string };
   createdAt: string;
 }
 
@@ -102,7 +114,13 @@ export default function AuditLogPanel({ logs, allTableNumbers }: Props) {
                 <p className="text-xs text-neutral-500">
                   {statusLabel(log.fromStatus)} → {statusLabel(log.toStatus)}{" "}
                   lúc {new Date(log.createdAt).toLocaleString("vi-VN")}
+                  {log.staffId?.name && ` bởi ${log.staffId.name}`}
                 </p>
+                {log.action === 'unlock' && log.note && (
+                  <p className="mt-1 text-xs text-neutral-600 italic">
+                    Lý do: {unlockReasonLabel(log.note)}
+                  </p>
+                )}
               </div>
             ))}
           </div>

@@ -8,6 +8,11 @@ interface Props {
   onSubmit: (note: string) => void;
 }
 
+const UNLOCK_REASONS = [
+  { value: "system_error", label: "Lỗi hệ thống" },
+  { value: "customer_change_table", label: "Khách muốn đổi bàn" },
+];
+
 export default function UnlockTableModal({ table, onClose, onSubmit }: Props) {
   const [note, setNote] = useState("");
 
@@ -29,12 +34,24 @@ export default function UnlockTableModal({ table, onClose, onSubmit }: Props) {
           Thao tác này chuyển bàn về trạng thái Bàn trong và ghi lại lịch sử
           nhân viên thực hiện.
         </p>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Lý do hoặc ghi chú xác nhận"
-          className="mt-4 min-h-24 w-full rounded-btn border border-neutral-200 px-3 py-2"
-        />
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            Lý do mở khóa
+          </label>
+          <select
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            required
+            className="w-full rounded-btn border border-neutral-200 px-3 py-2 text-sm"
+          >
+            <option value="">Chọn lý do...</option>
+            {UNLOCK_REASONS.map((reason) => (
+              <option key={reason.value} value={reason.value}>
+                {reason.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
@@ -45,7 +62,8 @@ export default function UnlockTableModal({ table, onClose, onSubmit }: Props) {
           </button>
           <button
             type="submit"
-            className="rounded-btn bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
+            disabled={!note}
+            className="rounded-btn bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:bg-neutral-300 disabled:cursor-not-allowed"
           >
             Xác nhận mở khóa
           </button>

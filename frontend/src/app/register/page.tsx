@@ -45,7 +45,7 @@ export default function RegisterPage() {
     try {
       const { confirmPassword, ...payload } = data;
       const response = await authService.register(payload);
-      setAuth(response.token, response.user);
+      setAuth(response.token, response.user, response.refreshToken);
       router.push('/');
     } catch (error: unknown) {
       if (error instanceof Error) {

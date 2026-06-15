@@ -84,10 +84,12 @@ export default function Cart() {
     getTotal,
     clearCart,
     isExpanded,
+    setExpanded,
     toggleExpanded,
     collapseCart,
   } = useCartStore();
   const { openBill } = useBillStore();
+  const billOpen = useBillStore((state) => state.isOpen);
   const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -133,6 +135,16 @@ export default function Cart() {
     openBill();
   };
 
+  const handleOpenMobileCart = () => {
+    setMobileOpen(true);
+    setExpanded(true);
+  };
+
+  const handleCloseMobileCart = () => {
+    setMobileOpen(false);
+    setExpanded(false);
+  };
+
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = "hidden";
@@ -159,7 +171,7 @@ export default function Cart() {
           )}
         </h2>
         <button
-          onClick={() => setMobileOpen(false)}
+          onClick={handleCloseMobileCart}
           className="lg:hidden p-1.5 rounded-full hover:bg-neutral-100 transition-colors text-neutral-500"
         >
           <X className="w-4 h-4" />
@@ -227,24 +239,26 @@ export default function Cart() {
   return (
     <>
       {/* FAB mobile */}
-      <button
-        className="lg:hidden fixed bottom-6 right-5 bg-primary-500 text-white p-4 rounded-full shadow-lg z-(--z-modal) hover:bg-primary-600 hover:scale-110 transition-all duration-200"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Mở giỏ hàng"
-      >
-        <ShoppingCart className="h-6 w-6" />
-        {!isEmpty && (
-          <span className="absolute -top-1 -right-1 bg-error-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-            {itemCount > 9 ? "9+" : itemCount}
-          </span>
-        )}
-      </button>
+      {!billOpen && (
+        <button
+          className="lg:hidden fixed bottom-6 right-5 bg-primary-500 text-white p-4 rounded-full shadow-lg z-(--z-floating) hover:bg-primary-600 hover:scale-110 transition-all duration-200"
+          onClick={handleOpenMobileCart}
+          aria-label="Mở giỏ hàng"
+        >
+          <ShoppingCart className="h-6 w-6" />
+          {!isEmpty && (
+            <span className="absolute -top-1 -right-1 bg-error-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+              {itemCount > 9 ? "9+" : itemCount}
+            </span>
+          )}
+        </button>
+      )}
 
       {/* Overlay mobile */}
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-(--z-overlay) lg:hidden"
-          onClick={() => setMobileOpen(false)}
+          onClick={handleCloseMobileCart}
           onTouchMove={(e) => e.preventDefault()}
         />
       )}
@@ -271,6 +285,7 @@ export default function Cart() {
         className={`
           hidden lg:flex fixed top-0 right-0 h-full bg-white shadow-modal
           z-(--z-drawer) flex-col transition-all duration-300
+          ${billOpen ? "pointer-events-none opacity-0" : "opacity-100"}
           ${isExpanded ? "w-75" : "w-16"}
         `}
       >

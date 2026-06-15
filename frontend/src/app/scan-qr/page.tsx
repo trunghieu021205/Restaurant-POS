@@ -67,7 +67,15 @@ export default function ScanQRPage() {
 
         if (table.status === "occupied") {
           setScanError(
-            `Bàn số ${table.number} đang được sử dụng. Vui lòng quét bàn khác hoặc liên hệ nhân viên.`
+            `Bàn số ${table.number} đang được sử dụng. Vui lòng quét bàn khác hoặc liên hệ nhân viên.`,
+          );
+          setScanStatus(null);
+          return;
+        }
+
+        if (table.status === "maintenance") {
+          setScanError(
+            `Bàn số ${table.number} đang bảo trì. Vui lòng quét bàn khác hoặc liên hệ nhân viên.`,
           );
           setScanStatus(null);
           return;
@@ -135,23 +143,6 @@ export default function ScanQRPage() {
       handleImageUpload(file);
       // Reset input value so the same file can be re-selected
       e.target.value = "";
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith("image/")) {
-        const file = item.getAsFile();
-        if (file) {
-          handleImageUpload(file);
-          e.preventDefault();
-          break;
-        }
-      }
     }
   };
 
@@ -341,32 +332,8 @@ export default function ScanQRPage() {
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
-              <Keyboard className="h-4 w-4" />
-              Hoặc nhập mã QR thủ công
-            </label>
-            <input
-              value={manualCode}
-              onChange={(event) => setManualCode(event.target.value)}
-              onPaste={handlePaste}
-              placeholder="table/12"
-              className="w-full rounded-btn border border-neutral-300 px-3 py-2 text-sm outline-none transition-colors focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            />
-            <button
-              type="button"
-              onClick={submitManualCode}
-              disabled={validating}
-              className="flex w-full items-center justify-center gap-2 rounded-btn bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {validating && <Loader2 className="h-4 w-4 animate-spin" />}
-              Đi đến bàn
-            </button>
-          </div>
-
           <p className="text-xs text-neutral-500">
-            Bạn có thể tải ảnh QR từ máy tính hoặc paste ảnh trực tiếp vào ô
-            nhập mã.
+            Bạn có thể tải ảnh QR từ máy tín
           </p>
         </div>
       </div>

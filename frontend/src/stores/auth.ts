@@ -4,9 +4,11 @@ import { User } from '@/types/user';
 
 interface AuthState {
     token: string | null;
+    refreshToken: string | null;
     user: User | null;
     hasHydrated: boolean;
-    setAuth: (token: string, user: User) => void;
+    setAuth: (token: string, user: User, refreshToken?: string | null) => void;
+    setToken: (token: string, refreshToken?: string | null) => void;
     logout: () => void;
     setHasHydrated: (value: boolean) => void;
 }
@@ -15,10 +17,15 @@ const useAuthStore = create<AuthState>()(
     persist(
         (set) => ({
         token: null,
+        refreshToken: null,
         user: null,
         hasHydrated: false,
-        setAuth: (token, user) => set({ token, user }),
-        logout: () => set({ token: null, user: null }),
+        setAuth: (token, user, refreshToken = null) => set({ token, user, refreshToken }),
+        setToken: (token, refreshToken) => set((state) => ({
+            token,
+            refreshToken: refreshToken ?? state.refreshToken,
+        })),
+        logout: () => set({ token: null, refreshToken: null, user: null }),
         setHasHydrated: (value) => set({ hasHydrated: value }),
         }),
         {

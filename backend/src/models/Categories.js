@@ -12,10 +12,6 @@ const CategoriesSchema = new mongoose.Schema({
         trim: true,
         default: ''
     },
-    image: { 
-        type: String, 
-        default: '' // Tiện cho việc hiển thị icon danh mục trên app/web sau này
-    },
     isActive: { 
         type: Boolean, 
         default: true // Để ẩn/hiện danh mục trên menu mà không cần xóa database
