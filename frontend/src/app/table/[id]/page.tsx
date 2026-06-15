@@ -15,10 +15,12 @@ import { BillSheet } from "@/components/bill/BillSheet";
 import { useTodayMenu } from "@/hooks/useTodayMenu";
 import type { ResolvedTable } from "@/services/table";
 import {
-  checkInTableByQr,
+  //checkInTableByQr,
   rejoinTableSession,
   validateTableSession,
 } from "@/services/qr";
+
+import { checkInTableAction } from "./actions";
 import { io } from "socket.io-client";
 import { useCategories } from "@/hooks/useCategories";
 import MenuCategoryFilter from "./MenuCategoryFilter";
@@ -107,7 +109,9 @@ export default function TablePage({ params }: { params: Params }) {
 
       if (resolvedTable.status === "maintenance") {
         setTableOk(false);
-        setAccessDenied(`Bàn số ${resolvedTable.number} đang bảo trì. Vui lòng liên hệ nhân viên.`);
+        setAccessDenied(
+          `Bàn số ${resolvedTable.number} đang bảo trì. Vui lòng liên hệ nhân viên.`,
+        );
         setTable(null);
         setTableId(null);
         clearTableSession(id);
@@ -174,7 +178,7 @@ export default function TablePage({ params }: { params: Params }) {
     setCheckingIn(true);
     setAccessDenied(null);
     try {
-      const checkIn = await checkInTableByQr(id, qrToken, {
+      const checkIn = await checkInTableAction(id, qrToken, {
         customerName,
         customerPhone,
       });
