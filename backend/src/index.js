@@ -1,4 +1,3 @@
-// 🌟 1. NẠP BIẾN MÔI TRƯỜNG Ở DÒNG ĐẦU TIÊN
 require('dotenv').config();
 
 const dns = require('dns');
@@ -14,24 +13,30 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// CORS - Cho phép nhiều origin
+// CORS Origins
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
   'http://localhost:3000',
-  'https://restaurant-pos-xi-nine.vercel.app/'
+  'https://restaurant-pos-xi-nine.vercel.app',
+  process.env.FRONTEND_URL
 ].filter(Boolean);
 
+// Socket.io CORS
 const io = socketio(server, {
-  cors: { 
-    origin: allowedOrigins, 
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] 
-  }
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
+  },
+  transports: ['polling', 'websocket']
 });
 
-// CORS cho Express
+// Express CORS
 app.use(cors({
   origin: allowedOrigins,
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());

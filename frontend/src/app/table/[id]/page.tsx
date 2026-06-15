@@ -41,6 +41,11 @@ const API_ORIGIN = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 ).replace(/\/api\/?$/, "");
 
+const socket = io(API_ORIGIN, {
+  transports: ["polling", "websocket"],
+  withCredentials: true,
+});
+
 type Params = Promise<{ id: string }>;
 
 export default function TablePage({ params }: { params: Params }) {
@@ -155,8 +160,6 @@ export default function TablePage({ params }: { params: Params }) {
   // Lắng nghe sự kiện payment_completed để tự redirect về home
   useEffect(() => {
     if (!tableOk || !table) return;
-
-    const socket = io(API_ORIGIN);
     socket.emit("join-table", table.id);
 
     socket.on("payment_completed", () => {
