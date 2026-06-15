@@ -13,14 +13,6 @@ async function updateAvailability(id: string, isAvailable: boolean) {
   return updateMenuAvailability(id, isAvailable);
 }
 
-function removeVietnameseDiacritics(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D');
-}
-
 export default function StaffMenuPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
@@ -29,8 +21,6 @@ export default function StaffMenuPage() {
   const { menuItems, isLoading, isError, error, refetch } = useTodayMenu();
 
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const canAccess = hasRole(user, ["staff", "admin"]);
 
@@ -49,35 +39,7 @@ export default function StaffMenuPage() {
     onSettled: () => setBusyId(null),
   });
 
-  const categories = useMemo(() => {
-    const categorySet = new Set<string>();
-    menuItems.forEach((item) => {
-      if (item.category && typeof item.category === "string") {
-        categorySet.add(item.category.trim());
-      }
-    });
-    return Array.from(categorySet).sort();
-  }, [menuItems]);
-
-  const items = useMemo(() => {
-    let filtered = menuItems;
-    
-    if (searchQuery) {
-      const normalizedSearchQuery = removeVietnameseDiacritics(searchQuery.toLowerCase());
-      filtered = filtered.filter((item) =>
-        removeVietnameseDiacritics(item.name.toLowerCase()).includes(normalizedSearchQuery)
-      );
-    }
-    
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter((item) => {
-        const categoryName = typeof item.category === "string" ? item.category : undefined;
-        return categoryName?.trim().toLowerCase() === selectedCategory.trim().toLowerCase();
-      });
-    }
-    
-    return filtered;
-  }, [menuItems, searchQuery, selectedCategory]);
+  const items = useMemo(() => menuItems, [menuItems]);
 
   if (!authLoading && !canAccess) {
     router.push("/");
@@ -126,55 +88,12 @@ export default function StaffMenuPage() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên món..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setSelectedCategory("all")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
-                selectedCategory === "all"
-                  ? "bg-primary-500 text-white border-primary-500"
-                  : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
-              }`}
-            >
-              Tất cả
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
-                  selectedCategory === category
-                    ? "bg-primary-500 text-white border-primary-500"
-                    : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {items.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-neutral-100 shadow-card">
             <div className="text-6xl mb-4">🍽️</div>
-            <p className="text-neutral-500 text-lg">
-              {searchQuery || selectedCategory !== "all"
-                ? "Không tìm thấy món nào phù hợp"
-                : "Chưa có món hôm nay"}
-            </p>
+            <p className="text-neutral-500 text-lg">Chưa có món hôm nay</p>
             <p className="text-sm text-neutral-400 mt-1">
-              {searchQuery || selectedCategory !== "all"
-                ? "Thử thay đổi tiêu chí tìm kiếm"
-                : "Vui lòng kiểm tra lại sau"}
+              Vui lòng kiểm tra lại sau
             </p>
           </div>
         ) : (
@@ -191,7 +110,9 @@ export default function StaffMenuPage() {
                       {item.name}
                     </p>
                     <p className="text-sm text-neutral-500">
-                      {typeof item.category === "string" ? item.category : ""}
+                      {typeof item.category === "object"
+                        ? item.category.name
+                        : (item.category ?? "")}
                     </p>
                   </div>
 

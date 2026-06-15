@@ -1,6 +1,6 @@
 import apiClient from "@/services/apiClient";
 
-export type TableStatus = "available" | "occupied" | "reserved" | "maintenance";
+export type TableStatus = "available" | "occupied" | "reserved" | "cleaning" | "maintenance";
 export type PaymentRequestType = "cash_payment_request" | "online_qr_payment";
 export type PaymentRequestStatus = "requested" | "pending" | "success" | "assisted" | "completed";
 

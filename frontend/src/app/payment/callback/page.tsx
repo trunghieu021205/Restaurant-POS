@@ -1,11 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 
-// Tách component sử dụng useSearchParams
-function PaymentCallbackContent() {
+export default function PaymentCallbackPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -69,31 +68,9 @@ function PaymentCallbackContent() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="text-center">
         <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary-600" />
-        <p className="mt-4 text-gray-600">
-          Đang chuyển hướng đến cổng thanh toán...
-        </p>
-        <p className="mt-2 text-sm text-gray-500">
-          Vui lòng không đóng trang này
-        </p>
+        <p className="mt-4 text-gray-600">Đang chuyển hướng đến cổng thanh toán...</p>
+        <p className="mt-2 text-sm text-gray-500">Vui lòng không đóng trang này</p>
       </div>
     </div>
-  );
-}
-
-// Loading fallback component
-function PaymentCallbackFallback() {
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
-    </div>
-  );
-}
-
-// Main page component wrapped with Suspense
-export default function PaymentCallbackPage() {
-  return (
-    <Suspense fallback={<PaymentCallbackFallback />}>
-      <PaymentCallbackContent />
-    </Suspense>
   );
 }

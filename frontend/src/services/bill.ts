@@ -1,5 +1,5 @@
 import apiClient from "./apiClient";
-import type { BillResponse, Bill, PaymentMethod } from "@/types/bill";
+import type { BillResponse } from "@/types/bill";
 
 export interface PaidBillTodayItem {
   id: string;
@@ -27,7 +27,7 @@ export interface PaidBillTodayItem {
   paidAt?: string | null;
 }
 
-function mapBill(bill: BillResponse): Bill {
+function mapBill(bill: RawBill): Bill {
   return {
     id: bill.id,
     tableId: bill.tableId,
@@ -47,14 +47,14 @@ function mapBill(bill: BillResponse): Bill {
       name: item.name,
       price: item.price,
       quantity: item.quantity,
-      notes: item.notes ?? item.notes,
+      notes: item.notes ?? item.note,
       status: item.status,
     })),
   };
 }
 
 export async function fetchBill(tableId: string): Promise<Bill> {
-  const bill = await apiClient<BillResponse>(`/tables/${encodeURIComponent(tableId)}/bill`);
+  const bill = await apiClient<RawBill>(`/tables/${encodeURIComponent(tableId)}/bill`);
   return mapBill(bill);
 }
 
@@ -62,7 +62,7 @@ export async function checkoutTable(
   tableId: string,
   paymentMethod: PaymentMethod,
 ): Promise<{ success: boolean; bill: Bill }> {
-  const result = await apiClient<{ success: boolean; bill: BillResponse }>(
+  const result = await apiClient<{ success: boolean; bill: RawBill }>(
     `/tables/${encodeURIComponent(tableId)}/checkout`,
     {
       method: "POST",
@@ -84,7 +84,7 @@ export async function fetchPaidBillsTodayForStaff(): Promise<PaidBillTodayItem[]
 }
 
 export async function fetchBillById(billId: string): Promise<Bill> {
-  const bill = await apiClient<BillResponse>(`/bills/${encodeURIComponent(billId)}`);
+  const bill = await apiClient<RawBill>(`/bills/${encodeURIComponent(billId)}`);
   return mapBill(bill);
 }
 

@@ -5,35 +5,16 @@ import { AlertCircle, Receipt, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Sheet, SheetContent } from "@/components/ui/Sheet";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import { useBill } from "@/hooks/useBill";
 import { BillSkeleton } from "./BillSkeleton";
 import { formatCurrency } from "@/lib/utils";
 import { useBillById } from "@/hooks/useBillById";
-
 interface BillReadOnlySheetProps {
   billId: string;
   tableNumber?: number;
   paidAt?: string | null;
   open: boolean;
   onClose: () => void;
-}
-
-interface BillItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-  notes?: string | null;
-}
-
-interface Bill {
-  id: string;
-  tableNumber?: number;
-  paidAt?: string | null;
-  items: BillItem[];
-  subtotal: number;
-  vatAmount: number;
-  discount: number;
-  totalAmount: number;
 }
 
 export function BillReadOnlySheet({
@@ -86,15 +67,12 @@ export function BillReadOnlySheet({
             </p>
             <div className="mt-2 flex justify-center gap-6 text-sm">
               <span className="font-medium">
-                Bàn số: {tableNumber ?? bill?.tableNumber ?? "N/A"}
+                Bàn số: {tableNumber ?? bill?.tableNumber}
               </span>
               <span>
-                {(() => {
-                  const dateStr = paidAt ?? bill?.paidAt;
-                  return dateStr
-                    ? new Date(dateStr).toLocaleString("vi-VN")
-                    : new Date().toLocaleDateString("vi-VN");
-                })()}
+                {paidAt || bill?.paidAt
+                  ? new Date(paidAt ?? bill!.paidAt!).toLocaleString("vi-VN")
+                  : new Date().toLocaleDateString("vi-VN")}
               </span>
             </div>
           </div>
@@ -129,7 +107,7 @@ export function BillReadOnlySheet({
                   <span className="col-span-4 text-right">Thành tiền</span>
                 </div>
                 <div className="divide-y divide-gray-50">
-                  {bill.items.map((item: BillItem) => (
+                  {bill.items.map((item) => (
                     <div
                       key={item.id}
                       className="grid grid-cols-12 items-start py-2.5 text-sm"

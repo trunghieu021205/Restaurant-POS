@@ -380,85 +380,85 @@ exports.rejoinTableSession = async (req, res) => {
   }
 };
 
-// exports.getPaymentQR = async (req, res) => {
-//   try {
-//     const bill = await Bill.findById(req.params.billId);
-//     if (!bill) {
-//       return res.status(404).json({ message: 'Hóa đơn không tồn tại' });
-//     }
+exports.getPaymentQR = async (req, res) => {
+  try {
+    const bill = await Bill.findById(req.params.billId);
+    if (!bill) {
+      return res.status(404).json({ message: 'Hóa đơn không tồn tại' });
+    }
 
-//     if (bill.status !== 'open') {
-//       return res.status(400).json({ message: 'Hóa đơn không ở trạng thái mở' });
-//     }
+    if (bill.status !== 'open') {
+      return res.status(400).json({ message: 'Hóa đơn không ở trạng thái mở' });
+    }
 
-//     const bankId = process.env.BANK_ID;
-//     const accountNo = process.env.BANK_ACCOUNT;
-//     const accountName = process.env.BANK_NAME;
-//     if (!bankId || !accountNo || !accountName) {
-//       return res.status(500).json({ message: 'Thiếu cấu hình BANK_ID/BANK_ACCOUNT/BANK_NAME' });
-//     }
+    const bankId = process.env.BANK_ID;
+    const accountNo = process.env.BANK_ACCOUNT;
+    const accountName = process.env.BANK_NAME;
+    if (!bankId || !accountNo || !accountName) {
+      return res.status(500).json({ message: 'Thiếu cấu hình BANK_ID/BANK_ACCOUNT/BANK_NAME' });
+    }
 
-//     const transferContent = `THANH TOAN BILL ${bill._id.toString().slice(-8).toUpperCase()}`;
-//     const qrCode = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png`
-//       + `?amount=${bill.totalAmount}`
-//       + `&addInfo=${encodeURIComponent(transferContent)}`
-//       + `&accountName=${encodeURIComponent(accountName)}`;
+    const transferContent = `THANH TOAN BILL ${bill._id.toString().slice(-8).toUpperCase()}`;
+    const qrCode = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png`
+      + `?amount=${bill.totalAmount}`
+      + `&addInfo=${encodeURIComponent(transferContent)}`
+      + `&accountName=${encodeURIComponent(accountName)}`;
 
-//     const table = await Table.findById(bill.tableId);
-//     if (table) {
-//       try {
-//         let notification = await PaymentNotification.findOne({
-//           tableId: table._id,
-//           billId: bill._id,
-//           type: 'online_qr_payment',
-//           paymentStatus: 'pending'
-//         }).sort({ createdAt: -1 });
+    const table = await Table.findById(bill.tableId);
+    if (table) {
+      try {
+        let notification = await PaymentNotification.findOne({
+          tableId: table._id,
+          billId: bill._id,
+          type: 'online_qr_payment',
+          paymentStatus: 'pending'
+        }).sort({ createdAt: -1 });
 
-//         if (!notification) {
-//           notification = await PaymentNotification.create({
-//             tableId: table._id,
-//             billId: bill._id,
-//             type: 'online_qr_payment',
-//             paymentStatus: 'pending',
-//             amount: bill.totalAmount,
-//             method: 'online_qr'
-//           });
-//         }
-//         const payload = {
-//           id: notification._id.toString(),
-//           tableId: table._id.toString(),
-//           tableNumber: table.number,
-//           billId: bill._id.toString(),
-//           type: notification.type,
-//           paymentStatus: notification.paymentStatus,
-//           amount: bill.totalAmount,
-//           method: 'online_qr',
-//           createdAt: notification.createdAt
-//         };
-//         getIO().to('staff').emit('payment_notification', payload);
-//         getIO().to('staff').emit('payment_notification_detail', payload);
-//       } catch (emitError) {
-//         console.error('Emit QR payment notification failed:', emitError);
-//       }
-//     }
+        if (!notification) {
+          notification = await PaymentNotification.create({
+            tableId: table._id,
+            billId: bill._id,
+            type: 'online_qr_payment',
+            paymentStatus: 'pending',
+            amount: bill.totalAmount,
+            method: 'online_qr'
+          });
+        }
+        const payload = {
+          id: notification._id.toString(),
+          tableId: table._id.toString(),
+          tableNumber: table.number,
+          billId: bill._id.toString(),
+          type: notification.type,
+          paymentStatus: notification.paymentStatus,
+          amount: bill.totalAmount,
+          method: 'online_qr',
+          createdAt: notification.createdAt
+        };
+        getIO().to('staff').emit('payment_notification', payload);
+        getIO().to('staff').emit('payment_notification_detail', payload);
+      } catch (emitError) {
+        console.error('Emit QR payment notification failed:', emitError);
+      }
+    }
 
-//     return res.json({
-//       billId: bill._id,
-//       tableId: bill.tableId,
-//       subtotal: bill.subtotal,
-//       tax: bill.tax,
-//       discount: bill.discount,
-//       totalAmount: bill.totalAmount,
-//       transferContent,
-//       bankInfo: {
-//         bankId,
-//         accountNo,
-//         accountName
-//       },
-//       qrCode
-//     });
-//   } catch (error) {
-//     console.error('Create payment QR error:', error);
-//     return res.status(500).json({ message: 'Không thể tạo mã QR thanh toán' });
-//   }
-// };
+    return res.json({
+      billId: bill._id,
+      tableId: bill.tableId,
+      subtotal: bill.subtotal,
+      tax: bill.tax,
+      discount: bill.discount,
+      totalAmount: bill.totalAmount,
+      transferContent,
+      bankInfo: {
+        bankId,
+        accountNo,
+        accountName
+      },
+      qrCode
+    });
+  } catch (error) {
+    console.error('Create payment QR error:', error);
+    return res.status(500).json({ message: 'Không thể tạo mã QR thanh toán' });
+  }
+};

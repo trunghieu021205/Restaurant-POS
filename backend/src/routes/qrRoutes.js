@@ -5,7 +5,7 @@ const requiredRole = require('../middleware/roleMiddleware');
 const {
   getTableQR,
   getAllTableQRs,
-  //getPaymentQR,
+  getPaymentQR,
   checkInTable,
   validateTableSession,
   rejoinTableSession
@@ -16,6 +16,6 @@ router.get('/tables', authMiddleware, requiredRole(['admin']), getAllTableQRs);
 router.post('/table/:tableId/check-in', checkInTable);
 router.post('/table/:tableId/rejoin', rejoinTableSession);
 router.post('/table/:tableId/session', validateTableSession);
-//router.get('/payment/:billId', getPaymentQR);
+router.get('/payment/:billId', getPaymentQR);
 
 module.exports = router;
