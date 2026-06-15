@@ -38,6 +38,11 @@ const API_ORIGIN = (
 
 type Params = Promise<{ id: string }>;
 
+interface FormErrors {
+  customerName?: string;
+  customerPhone?: string;
+}
+
 export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
@@ -102,7 +107,7 @@ export default function TablePage({ params }: { params: Params }) {
           errorMessage.includes("Phiên làm việc của bàn không còn hoạt động")
         ) {
           clearTableSession(id);
-          denialMessage = null; // Không hiển thị lỗi, cho phép check-in lại với qrToken
+          denialMessage = "";
         } else {
           console.error("table access validation failed:", e);
           denialMessage = errorMessage;
@@ -220,8 +225,26 @@ export default function TablePage({ params }: { params: Params }) {
     const originalPush = router.push;
     const originalReplace = router.replace;
 
-    router.push = (...args) => {
-      const targetPath = typeof args[0] === "string" ? args[0] : args[0]?.href;
+    // Helper function to extract path from router arguments
+    const extractPath = (
+      args: Parameters<typeof router.push>,
+    ): string | undefined => {
+      const firstArg = args[0];
+      if (typeof firstArg === "string") {
+        return firstArg;
+      }
+      // Use type assertion to safely access pathname
+      if (firstArg && typeof firstArg === "object") {
+        return (
+          (firstArg as { pathname?: string; href?: string }).pathname ||
+          (firstArg as { pathname?: string; href?: string }).href
+        );
+      }
+      return undefined;
+    };
+
+    router.push = (...args: Parameters<typeof router.push>) => {
+      const targetPath = extractPath(args);
       if (targetPath && targetPath !== pathname) {
         alert(
           "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
@@ -231,8 +254,8 @@ export default function TablePage({ params }: { params: Params }) {
       return originalPush(...args);
     };
 
-    router.replace = (...args) => {
-      const targetPath = typeof args[0] === "string" ? args[0] : args[0]?.href;
+    router.replace = (...args: Parameters<typeof router.replace>) => {
+      const targetPath = extractPath(args);
       if (targetPath && targetPath !== pathname) {
         alert(
           "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
@@ -284,9 +307,10 @@ export default function TablePage({ params }: { params: Params }) {
     validateForm();
   };
 
-  const restoreSession = (
-    session: Awaited<ReturnType<typeof checkInTableByQr>>,
-  ) => {
+  const restoreSession = (session: {
+    table: ResolvedTable;
+    sessionToken: string;
+  }) => {
     saveTableSession({
       table: session.table,
       token: session.sessionToken,

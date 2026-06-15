@@ -1,43 +1,45 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useBillById } from "@/hooks/useBillById";
 import { formatCurrency } from "@/lib/utils";
-import { useParams } from "next/navigation";
 import { Receipt } from "lucide-react";
+import PrintTrigger from "./PrintTrigger";
+import type { BillResponse } from "@/types/bill";
 
-export default function BillPrintPage() {
-  const params = useParams();
-  const billId = params.id as string;
-  const { data: bill, isLoading, isError } = useBillById(billId);
-  const [isClient, setIsClient] = useState(false);
+// SSR: luôn fetch mới khi có request, không cache trang này
+export const dynamic = "force-dynamic";
 
-  useEffect(() => {
-    setIsClient(true);
-    // Auto-print when page loads
-    if (bill && isClient) {
-      setTimeout(() => {
-        window.print();
-      }, 500);
-    }
-  }, [bill, isClient]);
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-  if (isLoading) {
+type FetchResult =
+  | { ok: true; bill: BillResponse }
+  | { ok: false; message: string };
+
+async function getBillReceipt(billId: string): Promise<FetchResult> {
+  const res = await fetch(`${API_URL}/bills/${billId}/receipt`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    return { ok: false, message: error.message || "Không thể tải hóa đơn" };
+  }
+
+  return { ok: true, bill: await res.json() };
+}
+
+type Params = Promise<{ id: string }>;
+
+export default async function BillPrintPage({ params }: { params: Params }) {
+  const { id } = await params;
+  const result = await getBillReceipt(id);
+
+  if (!result.ok) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Đang tải hóa đơn...</p>
+        <p className="text-red-600">{result.message}</p>
       </div>
     );
   }
 
-  if (isError || !bill) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-red-600">Không thể tải hóa đơn</p>
-      </div>
-    );
-  }
-
+  const bill = result.bill;
   const printedAt = bill.paidAt ? new Date(bill.paidAt) : new Date();
   const formattedDateTime = printedAt.toLocaleString("vi-VN", {
     day: "2-digit",
@@ -69,7 +71,7 @@ export default function BillPrintPage() {
             <span>{formattedDateTime}</span>
           </div>
         </div>
-        {/* Items section */}
+
         <div className="px-4 py-2">
           <div className="rounded-lg bg-white p-4 shadow-sm">
             <div className="grid grid-cols-12 border-b border-gray-100 pb-2 text-xs font-semibold uppercase text-gray-500">
@@ -79,7 +81,7 @@ export default function BillPrintPage() {
               <span className="col-span-4 text-right">Thành tiền</span>
             </div>
             <div className="divide-y divide-gray-50">
-              {bill.items.map((item: any) => (
+              {bill.items.map((item) => (
                 <div
                   key={item.id}
                   className="grid grid-cols-12 items-start py-2.5 text-sm"
@@ -105,7 +107,6 @@ export default function BillPrintPage() {
               ))}
             </div>
 
-            {/* Summary section - matches BillSheet component */}
             <div className="mt-2 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Tạm tính</span>
@@ -125,7 +126,6 @@ export default function BillPrintPage() {
           </div>
         </div>
 
-        {/* Total section */}
         <div className="border-t-2 border-dashed border-gray-300 bg-white/80 px-6 py-4">
           <div className="flex justify-between text-lg font-bold">
             <span className="text-gray-700">Tổng cộng</span>
@@ -143,30 +143,15 @@ export default function BillPrintPage() {
           )}
         </div>
 
-        {/* Print button for manual printing */}
-        <div className="px-6 py-4">
-          <button
-            onClick={() => window.print()}
-            className="w-full rounded-lg bg-gray-900 px-6 py-2 text-sm font-medium text-white hover:bg-gray-800"
-          >
-            In hóa đơn
-          </button>
-        </div>
+        <PrintTrigger />
       </div>
 
-      <style jsx global>{`
+      <style>{`
         @media print {
-          html,
-          body {
+          html, body {
             height: auto !important;
             min-height: 0 !important;
             margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-          }
-          .min-h-screen {
-            min-height: 0 !important;
-            height: auto !important;
             padding: 0 !important;
             background: white !important;
           }
@@ -176,13 +161,8 @@ export default function BillPrintPage() {
             max-width: 100%;
             margin: 0;
           }
-          button {
-            display: none !important;
-          }
-          @page {
-            margin: 0.5cm;
-            size: auto;
-          }
+          button { display: none !important; }
+          @page { margin: 0.5cm; size: auto; }
         }
       `}</style>
     </div>
