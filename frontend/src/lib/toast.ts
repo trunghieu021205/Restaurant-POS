@@ -5,7 +5,7 @@ export const showSuccessToast = (message: string) => {
   baseToast.success(message, {
     icon: '🛒',
     style: {
-      background: 'var(--color-primary-500)',
+      background: 'var(--color-primary-50)',
       color: 'var(--color-primary-800)',
       borderRadius: 'var(--radius-btn)',
       fontSize: '0.875rem',

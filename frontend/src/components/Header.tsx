@@ -11,6 +11,7 @@ import { normalizeRole } from "@/lib/roles";
 import { authService } from "@/services/auth";
 import { stopProactiveRefresh } from "@/services/apiClient";
 import { toast } from "@/lib/toast";
+import { useActiveBill } from "@/hooks/useActiveBill";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -21,6 +22,15 @@ export default function Header() {
   const { tableId, openBill } = useBillStore();
   const router = useRouter();
   const pathname = usePathname();
+
+  const { data: activeBill, isLoading: isCheckingBill } = useActiveBill(
+    tableId && hasActiveSession ? tableId : null,
+  );
+
+  const hasUnpaidOrder =
+    !!activeBill && activeBill.items.length > 0 && activeBill.status === "open";
+
+  const hasUnpaidBill = hasUnpaidOrder;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -79,22 +89,27 @@ export default function Header() {
   };
 
   const handleLogoClick = () => {
-    const isTablePage = pathname?.startsWith("/table/");
-    const isNotLoggedIn = !token;
-    const hasActiveBill = tableId !== null;
+    if (pathname?.startsWith("/table/")) {
+      if (hasUnpaidBill) {
+        toast.warning(
+          "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
+        );
+      } else {
+        toast.warning(
+          "Bạn đang ở giao diện bàn. Nếu có nhu cầu muốn đổi hoặc rời bàn, vui lòng liên hệ nhân viên để được hỗ trợ.",
+        );
+      }
+      return;
+    }
 
-    if (hasActiveBill) {
+    if (hasUnpaidBill) {
       toast.warning(
         "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
       );
-    } else if (isTablePage) {
-      toast.warning(
-        "Bạn đã checkin vào bàn. Không thể quay về trang chủ. Nếu có nhu cầu đổi bàn hãy liên hệ nhân viên để được hỗ trợ",
-      );
-    } else if (isNotLoggedIn) {
-      toast.warning("Vui lòng đăng nhập để tiếp tục.");
     }
   };
+
+  const shouldDisableLogo = hasActiveSession || pathname?.startsWith("/table/");
 
   const handleNavigationClick = (e: React.MouseEvent, href: string) => {
     if (hasActiveSession && href !== "/") {
@@ -112,9 +127,7 @@ export default function Header() {
   const menuHref = role === "staff" ? "/staff/menu" : "/admin/menu";
   const isTablePage = pathname?.startsWith("/table/");
   const isNotLoggedIn = !token;
-  const shouldDisableLogo = hasActiveSession || isTablePage || isNotLoggedIn;
 
-  // Đã gỡ bỏ phần check trùng lặp, chỉ giữ lại đường dẫn /admin chính xác
   const navLinks = [
     ...(role === "staff"
       ? [
