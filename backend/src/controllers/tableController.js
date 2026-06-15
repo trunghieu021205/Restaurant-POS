@@ -125,7 +125,7 @@ exports.unlockTable = async (req, res) => {
         }
 
         // Validate lý do mở khóa nếu có
-        const validUnlockReasons = ['system_error', 'customer_change_table'];
+        const validUnlockReasons = ['system_error', 'customer_change_table', 'customer_cancel_reservation'];
         if (note && !validUnlockReasons.includes(note)) {
             return res.status(400).json({ message: 'Lý do mở khóa không hợp lệ' });
         }
@@ -176,6 +176,7 @@ exports.unlockTable = async (req, res) => {
 
         const payload = await buildTableStatus(table);
         emitStaff('table_status_updated', payload);
+        emitTable(table._id.toString(), 'table_unlocked', { tableId: table._id.toString(), tableNumber: table.number, reason: note });
         return res.json(payload);
     } catch (error) {
         console.error('Unlock table error:', error);

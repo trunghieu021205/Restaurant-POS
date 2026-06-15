@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { getTransactionById } from "@/services/payment";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
-export default function PaymentFailurePage() {
+function PaymentFailureContent() {
   const searchParams = useSearchParams();
   const transactionId = searchParams.get("transactionId");
   const reason = searchParams.get("reason");
@@ -28,15 +28,7 @@ export default function PaymentFailurePage() {
     enabled: mounted && !!transactionId,
   });
 
-  if (!mounted) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
-      </div>
-    );
-  }
-
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -140,5 +132,21 @@ export default function PaymentFailurePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function PaymentFailureFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+    </div>
+  );
+}
+
+export default function PaymentFailurePage() {
+  return (
+    <Suspense fallback={<PaymentFailureFallback />}>
+      <PaymentFailureContent />
+    </Suspense>
   );
 }

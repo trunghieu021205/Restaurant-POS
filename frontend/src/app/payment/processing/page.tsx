@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ExternalLink, Loader2, CreditCard } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
-export default function PaymentProcessingPage() {
+function PaymentProcessingContent() {
   const searchParams = useSearchParams();
   const paymentUrl = searchParams.get("paymentUrl");
   const amount = searchParams.get("amount");
@@ -103,5 +103,21 @@ export default function PaymentProcessingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function PaymentProcessingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+    </div>
+  );
+}
+
+export default function PaymentProcessingPage() {
+  return (
+    <Suspense fallback={<PaymentProcessingFallback />}>
+      <PaymentProcessingContent />
+    </Suspense>
   );
 }

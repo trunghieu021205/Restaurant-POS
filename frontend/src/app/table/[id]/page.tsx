@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, use, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, use, useState, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import MenuGrid from "@/components/menu/MenuGrid";
@@ -15,10 +15,12 @@ import { BillSheet } from "@/components/bill/BillSheet";
 import { useTodayMenu } from "@/hooks/useTodayMenu";
 import type { ResolvedTable } from "@/services/table";
 import {
-  checkInTableByQr,
+  //checkInTableByQr,
   rejoinTableSession,
   validateTableSession,
 } from "@/services/qr";
+
+import { checkInTableAction } from "./actions";
 import { io } from "socket.io-client";
 import { useCategories } from "@/hooks/useCategories";
 import MenuCategoryFilter from "./MenuCategoryFilter";
@@ -29,6 +31,11 @@ import {
   getTableSession,
   saveTableSession,
 } from "@/lib/tableSession";
+import {
+  validateCustomerForm,
+  sanitizePhoneNumber,
+  type FormErrors,
+} from "@/lib/validation";
 
 const API_ORIGIN = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
@@ -39,10 +46,12 @@ type Params = Promise<{ id: string }>;
 export default function TablePage({ params }: { params: Params }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const qrToken = searchParams.get("qrToken");
   const { isOpen: billOpen, closeBill, setTableId } = useBillStore();
-  const { fetchCart, collapseCart } = useCartStore();
+  const { fetchCart, collapseCart, items } = useCartStore();
   const isExpanded = useCartStore((state) => state.isExpanded);
 
   const { menuItems, isLoading, isError, error, refetch } = useTodayMenu();
@@ -58,6 +67,17 @@ export default function TablePage({ params }: { params: Params }) {
   const [customerPhone, setCustomerPhone] = useState("");
   const [checkingIn, setCheckingIn] = useState(false);
   const [menuRefreshing, setMenuRefreshing] = useState(false);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [formTouched, setFormTouched] = useState<{
+    customerName: boolean;
+    customerPhone: boolean;
+  }>({
+    customerName: false,
+    customerPhone: false,
+  });
+
+  // Check if user has active unpaid orders
+  const hasActiveOrders = items.length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -87,7 +107,7 @@ export default function TablePage({ params }: { params: Params }) {
           errorMessage.includes("Phiên làm việc của bàn không còn hoạt động")
         ) {
           clearTableSession(id);
-          denialMessage = null; // Không hiển thị lỗi, cho phép check-in lại với qrToken
+          denialMessage = "";
         } else {
           console.error("table access validation failed:", e);
           denialMessage = errorMessage;
@@ -107,7 +127,9 @@ export default function TablePage({ params }: { params: Params }) {
 
       if (resolvedTable.status === "maintenance") {
         setTableOk(false);
-        setAccessDenied(`Bàn số ${resolvedTable.number} đang bảo trì. Vui lòng liên hệ nhân viên.`);
+        setAccessDenied(
+          `Bàn số ${resolvedTable.number} đang bảo trì. Vui lòng liên hệ nhân viên.`,
+        );
         setTable(null);
         setTableId(null);
         clearTableSession(id);
@@ -145,14 +167,135 @@ export default function TablePage({ params }: { params: Params }) {
       window.location.href = "/";
     });
 
+    socket.on("table_unlocked", () => {
+      clearTableSession(id, table?.number);
+      clearAllTableSessions();
+      useCartStore.getState().resetLocalCart();
+      closeBill();
+      window.location.href = "/";
+    });
+
     return () => {
       socket.disconnect();
     };
   }, [id, table?.id, table?.number, tableOk, closeBill]);
 
-  const restoreSession = (
-    session: Awaited<ReturnType<typeof checkInTableByQr>>,
-  ) => {
+  // Prevent browser back button when has active orders
+  useEffect(() => {
+    if (!tableOk || !hasActiveOrders) return;
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (hasActiveOrders) {
+        event.preventDefault();
+        window.history.pushState(null, "", window.location.href);
+        alert(
+          "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
+        );
+      }
+    };
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [tableOk, hasActiveOrders]);
+
+  // Store active session state for Header to check
+  useEffect(() => {
+    if (tableOk && hasActiveOrders) {
+      sessionStorage.setItem("activeTableSession", "true");
+      sessionStorage.setItem("activeTableId", id);
+    } else {
+      sessionStorage.removeItem("activeTableSession");
+      sessionStorage.removeItem("activeTableId");
+    }
+
+    return () => {
+      sessionStorage.removeItem("activeTableSession");
+      sessionStorage.removeItem("activeTableId");
+    };
+  }, [tableOk, hasActiveOrders, id]);
+
+  // Prevent route changes when has active orders
+  useEffect(() => {
+    if (!tableOk || !hasActiveOrders) return;
+
+    const originalPush = router.push;
+    const originalReplace = router.replace;
+
+    // Helper function to extract path from router arguments
+    const extractPath = (
+      args: Parameters<typeof router.push>,
+    ): string | undefined => {
+      const firstArg = args[0];
+      if (typeof firstArg === "string") {
+        return firstArg;
+      }
+      // Use type assertion to safely access pathname
+      if (firstArg && typeof firstArg === "object") {
+        return (
+          (firstArg as { pathname?: string; href?: string }).pathname ||
+          (firstArg as { pathname?: string; href?: string }).href
+        );
+      }
+      return undefined;
+    };
+
+    router.push = (...args: Parameters<typeof router.push>) => {
+      const targetPath = extractPath(args);
+      if (targetPath && targetPath !== pathname) {
+        alert(
+          "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
+        );
+        return Promise.reject(new Error("Navigation blocked"));
+      }
+      return originalPush(...args);
+    };
+
+    router.replace = (...args: Parameters<typeof router.replace>) => {
+      const targetPath = extractPath(args);
+      if (targetPath && targetPath !== pathname) {
+        alert(
+          "Bạn đang có đơn hàng chưa thanh toán. Vui lòng thanh toán trước khi rời bàn.",
+        );
+        return Promise.reject(new Error("Navigation blocked"));
+      }
+      return originalReplace(...args);
+    };
+
+    return () => {
+      router.push = originalPush;
+      router.replace = originalReplace;
+    };
+  }, [tableOk, hasActiveOrders, router, pathname]);
+
+  const validateForm = useCallback((): boolean => {
+    const { isValid, errors } = validateCustomerForm({
+      customerName,
+      customerPhone,
+    });
+    setFormErrors(errors);
+    return isValid;
+  }, [customerName, customerPhone]);
+
+  const handlePhoneChange = (value: string) => {
+    const sanitized = sanitizePhoneNumber(value);
+    setCustomerPhone(sanitized);
+    if (formTouched.customerPhone) validateForm();
+  };
+
+  // Handle field blur for validation
+  const handleFieldBlur = (field: "customerName" | "customerPhone") => {
+    setFormTouched((prev) => ({ ...prev, [field]: true }));
+    validateForm();
+  };
+
+  const restoreSession = (session: {
+    table: ResolvedTable;
+    sessionToken: string;
+  }) => {
     saveTableSession({
       table: session.table,
       token: session.sessionToken,
@@ -171,10 +314,19 @@ export default function TablePage({ params }: { params: Params }) {
     event.preventDefault();
     if (!qrToken) return;
 
+    setFormTouched({
+      customerName: true,
+      customerPhone: true,
+    });
+
+    if (!validateForm()) {
+      return;
+    }
+
     setCheckingIn(true);
     setAccessDenied(null);
     try {
-      const checkIn = await checkInTableByQr(id, qrToken, {
+      const checkIn = await checkInTableAction(id, qrToken, {
         customerName,
         customerPhone,
       });
@@ -191,6 +343,16 @@ export default function TablePage({ params }: { params: Params }) {
 
     setCheckingIn(true);
     setAccessDenied(null);
+
+    setFormTouched({
+      customerName: true,
+      customerPhone: true,
+    });
+
+    if (!validateForm()) {
+      return;
+    }
+
     try {
       const session = await rejoinTableSession(id, {
         customerName,
@@ -243,36 +405,105 @@ export default function TablePage({ params }: { params: Params }) {
             <h1 className="text-2xl font-bold text-neutral-900">
               Thông tin khách hàng
             </h1>
-          </div>
-          {accessDenied && (
-            <p className="rounded-btn bg-error-500/10 px-3 py-2 text-sm text-error-600">
-              {accessDenied}
+            <p className="mt-1 text-sm text-neutral-500">
+              Vui lòng nhập đầy đủ thông tin để tiếp tục
             </p>
+          </div>
+
+          {accessDenied && (
+            <div className="rounded-btn bg-error-500/10 px-3 py-2 border border-error-200">
+              <p className="text-sm text-error-600">{accessDenied}</p>
+            </div>
           )}
-          <label className="block text-sm font-medium text-neutral-700">
-            Họ tên
-            <input
-              value={customerName}
-              onChange={(event) => setCustomerName(event.target.value)}
-              className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 outline-none focus:border-primary-500"
-              placeholder="Nguyễn Văn A"
-            />
-          </label>
-          <label className="block text-sm font-medium text-neutral-700">
-            Số điện thoại
-            <input
-              value={customerPhone}
-              onChange={(event) => setCustomerPhone(event.target.value)}
-              className="mt-1 w-full rounded-btn border border-neutral-200 px-3 py-2 outline-none focus:border-primary-500"
-              placeholder="0901234567"
-              required
-            />
-          </label>
+
+          {/* Customer Name Field */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700">
+              Họ tên <span className="text-error-500">*</span>
+              <input
+                value={customerName}
+                onChange={(event) => {
+                  setCustomerName(event.target.value);
+                  if (formTouched.customerName) validateForm();
+                }}
+                onBlur={() => handleFieldBlur("customerName")}
+                className={`mt-1 w-full rounded-btn border px-3 py-2 outline-none transition-colors ${
+                  formTouched.customerName && formErrors.customerName
+                    ? "border-error-500 focus:border-error-500 bg-error-50"
+                    : "border-neutral-200 focus:border-primary-500"
+                }`}
+                placeholder="Nguyễn Văn A"
+              />
+            </label>
+            {formTouched.customerName && formErrors.customerName && (
+              <p className="mt-1 text-sm text-error-600 flex items-center gap-1">
+                <svg
+                  className="w-4 h-4 shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {formErrors.customerName}
+              </p>
+            )}
+          </div>
+
+          {/* Phone Number Field */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700">
+              Số điện thoại <span className="text-error-500">*</span>
+              <input
+                value={customerPhone}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                onBlur={() => handleFieldBlur("customerPhone")}
+                className={`mt-1 w-full rounded-btn border px-3 py-2 outline-none transition-colors ${
+                  formTouched.customerPhone && formErrors.customerPhone
+                    ? "border-error-500 focus:border-error-500 bg-error-50"
+                    : "border-neutral-200 focus:border-primary-500"
+                }`}
+                placeholder="0901234567"
+                inputMode="tel"
+              />
+            </label>
+            {formTouched.customerPhone && formErrors.customerPhone && (
+              <p className="mt-1 text-sm text-error-600 flex items-center gap-1">
+                <svg
+                  className="w-4 h-4 shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {formErrors.customerPhone}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-neutral-400">
+              Định dạng: 0901234567 hoặc +84901234567
+            </p>
+          </div>
+
+          {/* Submit Button */}
           <button
             disabled={checkingIn}
-            className="w-full rounded-btn bg-primary-600 px-4 py-2 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="w-full rounded-btn bg-primary-600 px-4 py-2.5 font-medium text-white transition-all hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {checkingIn ? "Đang check-in..." : "Tiếp tục vào bàn"}
+            {checkingIn ? (
+              <span className="flex items-center justify-center gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Đang check-in...
+              </span>
+            ) : (
+              "Tiếp tục vào bàn"
+            )}
           </button>
         </form>
       </div>
